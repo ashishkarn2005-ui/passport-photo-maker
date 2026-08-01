@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>पासपोर्ट फोटो स्टूडियो</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.22.0/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.1/dist/body-pix.min.js"></script>
+<style>
+  :root{
+    --paper:#EFEDE7;
+    --paper-alt:#E4E1D6;
+    --card:#FBFAF7;
+    --ink:#21242B;
+    --ink-soft:#5B5F68;
+    --line:#CBC6B8;
+    --red:#C23B3B;
+    --red-soft:#E8D3D3;
+    --blue:#35597A;
+    --blue-soft:#DCE4EA;
+    --white:#FFFFFF;
+    --radius:2px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:
+      linear-gradient(var(--paper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper) 1px, transparent 1px);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    min-height:100vh;
+  }
+  .display{font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.04em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* ===== Header ===== */
+  header{
+    padding:22px 20px 0;
+    max-width:1100px;
+    margin:0 auto;
+  }
+  .brand{
+    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  }
+  .brand h1{
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:700;
+    font-size:clamp(28px,5vw,42px);
+    letter-spacing:0.02em;
+    margin:0;
+    text-transform:uppercase;
+  }
+  .brand .tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:3px 8px;
+    border-radius:2px;
+    background:var(--card);
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:14.5px;
+    margin:6px 0 18px;
+    max-width:640px;
+    line-height:1.5;
+  }
+
+  /* ===== Filmstrip step nav ===== */
+  .filmstrip{
+    display:flex;
+    background:var(--ink);
+    border-radius:3px;
+    overflow:hidden;
+    margin-bottom:22px;
+    box-shadow:0 1px 0 rgba(0,0,0,.05);
+  }
+  .frame{
+    flex:1;
+    position:relative;
+    padding:12px 14px 12px 16px;
+    color:#B9BCC4;
+    cursor:pointer;
+    border-right:1px dashed #45484F;
+    transition:background .18s ease, color .18s ease;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  button:focus-visible, select:focus-visible, input:focus-visible, .frame:focus-visible, .swatch:focus-visible{
+    outline:2px solid var(--red); outline-offset:2px;
+  }
+  .frame:last-child{border-right:none;}
+  .frame::before, .frame::after{
+    content:'';
+    position:absolute; left:6px; width:6px; height:6px;
+    background:var(--paper); border-radius:1px;
+  }
+  .frame::before{top:4px;} .frame::after{bottom:4px;}
+  .frame .num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    opacity:.75;
+  }
+  .frame .label{
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:600;
+    letter-spacing:.04em;
+    font-size:17px;
+    text-transform:uppercase;
+  }
+  .frame.active{background:var(--red); color:#fff;}
+  .frame.done .num::after{content:' ✓';}
+  .frame.disabled{cursor:not-allowed; opacity:.45;}
+
+  main{max-width:1100px; margin:0 auto; padding:0 20px 60px;}
+  .step{display:none;}
+  .step.active{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .grid2{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:24px;
+  }
+  @media (max-width:820px){ .grid2{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:0 1px 2px rgba(33,36,43,.04), 0 6px 20px rgba(33,36,43,.03);
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .spinner{
+    display:inline-block; width:13px; height:13px;
+    border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
+    border-radius:50%; animation:spin .7s linear infinite;
+    margin-right:7px; vertical-align:-2px;
+  }
+  button.loading{ opacity:.85; cursor:progress; }
+  .quality-readout{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft);
+    margin-top:6px; display:flex; justify-content:space-between;
+    border-top:1px dashed var(--line); padding-top:6px;
+  }
+  .quality-readout b{color:var(--ink); font-weight:600;}
+  .panel h3{
+    font-family:'Barlow Condensed',sans-serif;
+    text-transform:uppercase;
+    font-size:15px;
+    letter-spacing:.05em;
+    color:var(--ink-soft);
+    margin:0 0 12px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--line);
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  select, input[type=range]{width:100%;}
+  select{
+    padding:8px 10px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:14px;
+    border-radius:2px;
+    color:var(--ink);
+  }
+  input[type=range]{accent-color:var(--red);}
+  .range-row{display:flex; align-items:center; gap:10px;}
+  .range-row .val{font-family:'IBM Plex Mono',monospace; font-size:12px; width:36px; text-align:right; color:var(--ink-soft);}
+
+  .swatches{display:flex; gap:8px; flex-wrap:wrap;}
+  .swatch{
+    width:30px; height:30px; border-radius:50%;
+    border:2px solid var(--line);
+    cursor:pointer;
+    position:relative;
+  }
+  .swatch.selected{border-color:var(--red); box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--red);}
+
+  button{
+    font-family:'Barlow Condensed',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    font-weight:600;
+    font-size:15px;
+    padding:11px 18px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:#fff;
+    border-radius:2px;
+    cursor:pointer;
+    transition:transform .1s ease, background .15s ease;
+  }
+  button:hover{background:#000;}
+  button:active{transform:scale(.98);}
+  button.secondary{background:transparent; color:var(--ink); border-color:var(--line);}
+  button.secondary:hover{background:var(--paper-alt);}
+  button.accent{background:var(--red); border-color:var(--red);}
+  button.accent:hover{background:#a52f2f;}
+  button:disabled{opacity:.4; cursor:not-allowed;}
+  .btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
+
+  /* ===== Upload ===== */
+  .dropzone{
+    border:2px dashed var(--line);
+    border-radius:4px;
+    padding:60px 20px;
+    text-align:center;
+    background:var(--card);
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--red); background:#FBF4F4;}
+  .dropzone .icon{font-size:36px; margin-bottom:10px;}
+  .dropzone h3{margin:0 0 6px; font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; font-size:22px;}
+  .dropzone p{color:var(--ink-soft); font-size:13.5px; margin:0;}
+  #fileInput{display:none;}
+
+  .formats-note{
+    margin-top:18px;
+    display:flex; gap:16px; flex-wrap:wrap;
+    font-size:12.5px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;
+  }
+  .formats-note span{border:1px solid var(--line); padding:4px 8px; border-radius:2px; background:var(--card);}
+
+  /* ===== Light table / canvas stage ===== */
+  .lighttable{
+    background:
+      linear-gradient(#DEDBD0 1px, transparent 1px),
+      linear-gradient(90deg, #DEDBD0 1px, transparent 1px),
+      #F6F4EE;
+    background-size:16px 16px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:460px;
+    padding:20px;
+    position:relative;
+  }
+  .stage-wrap{position:relative; box-shadow:0 8px 24px rgba(0,0,0,.15);}
+  .stage-wrap canvas{display:block; cursor:grab;}
+  .stage-wrap canvas:active{cursor:grabbing;}
+  #overlayCanvas{position:absolute; top:0; left:0; pointer-events:none;}
+
+  .hint{
+    font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+  }
+
+  /* ===== Sheet stage ===== */
+  #sheetCanvas{max-width:100%; height:auto; background:#fff; box-shadow:0 8px 24px rgba(0,0,0,.15);}
+
+  .stat-row{display:flex; gap:18px; flex-wrap:wrap; margin-top:14px;}
+  .stat{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .stat b{color:var(--ink); display:block; font-size:18px; font-family:'Barlow Condensed',sans-serif;}
+
+  footer{
+    max-width:1100px; margin:0 auto; padding:0 20px 40px;
+    color:var(--ink-soft); font-size:12px; font-family:'IBM Plex Mono',monospace;
+  }
+  footer .rule{border-top:1px dashed var(--line); margin:24px 0 14px;}
+
+  .note-box{
+    background:var(--blue-soft);
+    border:1px solid #B9C7D3;
+    padding:10px 12px;
+    font-size:12.5px;
+    color:#2C4258;
+    border-radius:2px;
+    margin-top:10px;
+    line-height:1.5;
+  }
+
+  /* ===== Gallery (multi-upload) ===== */
+  .gallery{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(110px,1fr));
+    gap:12px;
+    margin-top:20px;
+  }
+  .gallery-item{
+    position:relative;
+    border:2px solid var(--line);
+    border-radius:3px;
+    overflow:hidden;
+    cursor:pointer;
+    background:#fff;
+    aspect-ratio:1/1;
+  }
+  .gallery-item:hover{border-color:var(--red);}
+  .gallery-item img{width:100%; height:100%; object-fit:cover; display:block;}
+  .gallery-item .pick{
+    position:absolute; bottom:0; left:0; right:0;
+    background:rgba(33,36,43,.82); color:#fff;
+    font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.04em;
+    font-size:12px; text-align:center; padding:5px 0;
+  }
+  .gallery-title{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); margin-top:16px;
+  }
+
+  /* ===== Checklist ===== */
+  .checklist{
+    list-style:none; padding:0; margin:8px 0 0;
+    font-size:12.5px; color:var(--ink-soft); line-height:1.7;
+  }
+  .checklist li{padding-left:18px; position:relative;}
+  .checklist li::before{
+    content:'✓'; position:absolute; left:0; color:var(--red); font-weight:600;
+  }
+
+  /* ===== Small util buttons ===== */
+  .icon-btn{
+    background:transparent; border:1px solid var(--line); color:var(--ink-soft);
+    padding:8px 12px; font-size:12.5px; text-transform:none; letter-spacing:0; font-weight:500;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  .icon-btn:hover{background:var(--paper-alt); color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>पासपोर्ट फोटो स्टूडियो</h1>
+    <span class="tag mono">STUDIO CUT · V1</span>
+  </div>
+  <p class="sub">फोटो अपलोड करें, स्टूडियो जैसा बैकग्राउंड और साइज़ सेट करें, फिर प्रिंट शीट पर कई कॉपियाँ अरेंज करके डाउनलोड करें।</p>
+</header>
+
+<main>
+  <div class="filmstrip">
+    <div class="frame active" data-step="1"><span class="num mono">01</span><span class="label">अपलोड</span></div>
+    <div class="frame disabled" data-step="2"><span class="num mono">02</span><span class="label">एडजस्ट</span></div>
+    <div class="frame disabled" data-step="3"><span class="num mono">03</span><span class="label">प्रिंट शीट</span></div>
+  </div>
+
+  <!-- STEP 1: UPLOAD -->
+  <section class="step active" id="step1">
+    <div class="dropzone" id="dropzone">
+      <div class="icon">📷</div>
+      <h3>फोटो यहाँ खींचें या क्लिक करें</h3>
+      <p>JPG / PNG · एक साथ कई फोटो चुन सकते हैं · सीधा चेहरा, प्लेन बैकग्राउंड वाली फोटो सबसे अच्छा रिज़ल्ट देती है</p>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+    </div>
+    <div class="formats-note">
+      <span>India / US — 2×2 in (51×51mm)</span>
+      <span>UK / Schengen — 35×45mm</span>
+      <span>China Visa — 33×48mm</span>
+      <span>Canada — 50×70mm</span>
+    </div>
+    <div class="gallery-title" id="galleryTitle" style="display:none;">सबसे अच्छी फोटो चुनें →</div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <!-- STEP 2: ADJUST -->
+  <section class="step" id="step2">
+    <div class="grid2">
+      <div class="panel">
+        <h3>फोटो साइज़</h3>
+        <div class="field">
+          <label>FORMAT</label>
+          <select id="formatSelect">
+            <option value="51,51">India / US Passport & Visa — 2×2 in</option>
+            <option value="35,45">UK / Schengen / Europe — 35×45mm</option>
+            <option value="33,48">China Visa — 33×48mm</option>
+            <option value="50,70">Canada — 50×70mm</option>
+            <option value="35,45">Australia — 35×45mm</option>
+            <option value="custom">कस्टम साइज़ (mm)</option>
+          </select>
+        </div>
+        <div class="field" id="customSizeField" style="display:none;">
+          <label>कस्टम — चौड़ाई × ऊँचाई (mm)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="number" id="customW" placeholder="35" style="width:50%; padding:8px; border:1px solid var(--line); border-radius:2px;">
+            <input type="number" id="customH" placeholder="45" style="width:50%; padding:8px; border:1px solid var(--line); border-radius:2px;">
+          </div>
+        </div>
+        <ul class="checklist" id="checklist"></ul>
+
+        <h3 style="margin-top:22px;">आउटपुट क्वालिटी</h3>
+        <div class="field">
+          <label>DPI / रेज़ोल्यूशन</label>
+          <select id="qualitySelect">
+            <option value="150">स्टैंडर्ड — 150 DPI (ऑनलाइन फॉर्म के लिए)</option>
+            <option value="300" selected>HD प्रिंट — 300 DPI (डिफ़ॉल्ट, सामान्य प्रिंट)</option>
+            <option value="600">फुल HD — 600 DPI (हाई-क्वालिटी प्रिंट)</option>
+            <option value="1200">4K UHD — 1200 DPI (प्रोफेशनल / बड़ा एनलार्जमेंट)</option>
+          </select>
+        </div>
+        <div class="quality-readout"><span>फाइनल साइज़</span><b id="qualityStat">—</b></div>
+
+        <h3 style="margin-top:22px;">ज़ूम / पोज़िशन / घुमाव</h3>
+        <div class="field">
+          <label>ज़ूम</label>
+          <div class="range-row">
+            <input type="range" id="zoomRange" min="50" max="300" value="100">
+            <span class="val mono" id="zoomVal">100%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>घुमाएं (टेढ़ा सिर ठीक करें)</label>
+          <div class="range-row">
+            <input type="range" id="rotateRange" min="-30" max="30" value="0">
+            <span class="val mono" id="rotateVal">0°</span>
+          </div>
+        </div>
+        <p class="hint" style="text-align:left;">फोटो को ड्रैग करके चेहरे को गाइडलाइन के बीच सेट करें · सपोर्टेड ब्राउज़र में फेस अपने-आप सेंटर हो जाता है</p>
+        <div class="btn-row">
+          <button class="icon-btn" id="resetBtn" type="button">↺ रीसेट</button>
+          <button class="icon-btn" id="beforeAfterBtn" type="button">👁 दबाकर देखें: पहले वाली</button>
+        </div>
+
+        <h3 style="margin-top:22px;">स्टूडियो टच-अप</h3>
+        <div class="field">
+          <label>ब्राइटनेस</label>
+          <div class="range-row"><input type="range" id="brightRange" min="70" max="140" value="100"><span class="val mono" id="brightVal">100%</span></div>
+        </div>
+        <div class="field">
+          <label>कॉन्ट्रास्ट</label>
+          <div class="range-row"><input type="range" id="contrastRange" min="70" max="140" value="100"><span class="val mono" id="contrastVal">100%</span></div>
+        </div>
+        <div class="btn-row">
+          <button class="secondary" id="autoEnhanceBtn" type="button">⚡ ऑटो एन्हांस</button>
+        </div>
+
+        <h3 style="margin-top:22px;">बैकग्राउंड बदलें</h3>
+        <div class="field">
+          <div class="swatches" id="bgSwatches">
+            <div class="swatch selected" data-color="none" style="background:repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0/8px 8px;" title="कोई बदलाव नहीं"></div>
+            <div class="swatch" data-color="#FFFFFF" style="background:#fff;" title="सफ़ेद"></div>
+            <div class="swatch" data-color="#3F7BC4" style="background:#3F7BC4;" title="हल्का नीला"></div>
+            <div class="swatch" data-color="#C23B3B" style="background:#C23B3B;" title="लाल"></div>
+            <div class="swatch" data-color="#B9BDC2" style="background:#B9BDC2;" title="ग्रे"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>टॉलरेंस (बैकग्राउंड कितना मैच करे)</label>
+          <div class="range-row"><input type="range" id="tolRange" min="10" max="100" value="40"><span class="val mono" id="tolVal">40</span></div>
+        </div>
+        <button class="accent" id="aiRemoveBtn" type="button" style="width:100%;">🤖 AI से बैकग्राउंड रिमूव</button>
+        <div class="btn-row">
+          <button class="secondary" id="applyBgBtn" type="button">मैनुअल कलर-मैच (ऑफलाइन)</button>
+        </div>
+        <div class="note-box">🤖 <b>AI रिमूव</b> पहली बार चलाने पर एक छोटा मॉडल (~5-10MB) डाउनलोड करता है, इंटरनेट चाहिए, पर किसी भी बैकग्राउंड पर सटीक काम करता है। <b>मैनुअल कलर-मैच</b> पूरी तरह ऑफलाइन चलता है, पर सिर्फ़ प्लेन/एक-रंग बैकग्राउंड पर अच्छा रिज़ल्ट देता है। AI लगाने के बाद अगर ज़ूम/ब्राइटनेस/रोटेट बदला तो दोबारा "AI रिमूव" दबाना होगा।</div>
+
+        <div class="btn-row" style="margin-top:20px;">
+          <button class="secondary" id="backTo1">← वापस</button>
+          <button class="accent" id="confirmCropBtn">फोटो कन्फर्म करें →</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="lighttable">
+          <div class="stage-wrap">
+            <canvas id="cropCanvas"></canvas>
+            <canvas id="overlayCanvas"></canvas>
+          </div>
+        </div>
+        <p class="hint">माउस से ड्रैग करके फोटो को फ्रेम में सेट करें</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: SHEET -->
+  <section class="step" id="step3">
+    <div class="grid2">
+      <div class="panel">
+        <h3>प्रिंट शीट</h3>
+        <div class="field">
+          <label>शीट साइज़</label>
+          <select id="sheetSelect">
+            <option value="101.6,152.4">4 × 6 इंच फोटो पेपर</option>
+            <option value="127,178">5 × 7 इंच</option>
+            <option value="210,297">A4 शीट</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>कितनी कॉपी चाहिए</label>
+          <div class="range-row">
+            <input type="range" id="copiesRange" min="1" max="40" value="8">
+            <span class="val mono" id="copiesVal">8</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>शीट क्वालिटी / DPI</label>
+          <select id="sheetQualitySelect">
+            <option value="150">स्टैंडर्ड — 150 DPI</option>
+            <option value="300" selected>HD प्रिंट — 300 DPI (डिफ़ॉल्ट)</option>
+            <option value="600">फुल HD — 600 DPI (बड़ी फाइल, धीमा हो सकता है)</option>
+          </select>
+        </div>
+        <div class="quality-readout"><span>शीट रेज़ोल्यूशन</span><b id="sheetQualityStat">—</b></div>
+        <div class="stat-row">
+          <div class="stat"><b id="maxFit">—</b>शीट पर अधिकतम फिट</div>
+          <div class="stat"><b id="gridInfo">—</b>ग्रिड (कॉलम × रो)</div>
+        </div>
+        <div class="btn-row" style="margin-top:20px;">
+          <button class="secondary" id="backTo2">← वापस</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px;">
+          <button class="accent" id="downloadSheetBtn">⬇ शीट PNG डाउनलोड करें</button>
+        </div>
+        <div class="btn-row">
+          <button class="secondary" id="downloadPdfBtn">⬇ शीट PDF डाउनलोड करें (प्रिंट शॉप के लिए)</button>
+        </div>
+        <div class="btn-row">
+          <button class="secondary" id="downloadSingleBtn">⬇ सिंगल फोटो डाउनलोड करें</button>
+        </div>
+      </div>
+      <div>
+        <div class="lighttable">
+          <canvas id="sheetCanvas"></canvas>
+        </div>
+        <p class="hint">कट-मार्क (क्रॉसहेयर) हर फोटो के कोने पर दिखेंगे — कैंची से आसानी से काटें</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="rule"></div>
+  पूरी प्रोसेस आपके ब्राउज़र में ही होती है — फोटो कहीं अपलोड नहीं होती। बैकग्राउंड रिमूव एक रंग-पहचान एल्गोरिद्म से होता है, बेहतरीन रिज़ल्ट के लिए सादे बैकग्राउंड वाली फोटो इस्तेमाल करें।
+</footer>
+
+<script>
+(function(){
+  const state = {
+    img:null, naturalW:0, naturalH:0,
+    fmtW:51, fmtH:51,
+    zoom:1, offX:0, offY:0, rotation:0,
+    dragging:false, lastX:0, lastY:0,
+    bright:100, contrast:100,
+    bgColor:null, tol:40,
+    finalCanvas:null,
+    dpiCrop:300, dpiSheet:300,
+    sheetMM:null
+  };
+
+  const CHECKLISTS = {
+    '51,51': ['सफ़ेद बैकग्राउंड ज़रूरी', 'आँखें पूरी खुली, सीधा देखें', 'चश्मा/टोपी हटाएं', 'न्यूट्रल एक्सप्रेशन', 'फोटो 6 महीने से पुरानी न हो'],
+    '35,45': ['हल्का ग्रे या सफ़ेद बैकग्राउंड', 'मुँह बंद, दोनों कान दिखने चाहिए', 'सिर सीधा, टेढ़ा न हो', 'शैडो/चमक फोटो पर न हो'],
+    '33,48': ['सफ़ेद बैकग्राउंड', 'सिर पर कोई गहना/टोपी नहीं (धार्मिक कारण छोड़कर)', 'दोनों कान साफ़ दिखें', 'बिना मुस्कान, न्यूट्रल चेहरा'],
+    '50,70': ['सफ़ेद या हल्का बैकग्राउंड', 'दोनों कंधे बराबर लेवल पर', 'आँखें कैमरे की तरफ', 'हाल की फोटो (6 महीने के अंदर)']
+  };
+
+  const $ = id => document.getElementById(id);
+  const cropCanvas = $('cropCanvas'), overlayCanvas = $('overlayCanvas');
+  const cctx = cropCanvas.getContext('2d'), octx = overlayCanvas.getContext('2d');
+
+  // ---------- Step nav ----------
+  const frames = document.querySelectorAll('.frame');
+  function goStep(n){
+    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+    $('step'+n).classList.add('active');
+    frames.forEach(f=>{
+      const step = +f.dataset.step;
+      f.classList.toggle('active', step===n);
+      if(step<n) f.classList.add('done'); else if(step>n) f.classList.remove('done');
+    });
+  }
+  frames.forEach(f=>{
+    f.addEventListener('click', ()=>{
+      if(f.classList.contains('disabled')) return;
+      goStep(+f.dataset.step);
+    });
+  });
+  function unlockStep(n){
+    const f = document.querySelector('.frame[data-step="'+n+'"]');
+    f.classList.remove('disabled');
+  }
+
+  // ---------- Upload (multi-file) ----------
+  const dropzone = $('dropzone'), fileInput = $('fileInput');
+  const gallery = $('gallery'), galleryTitle = $('galleryTitle');
+  dropzone.addEventListener('click', ()=>fileInput.click());
+  dropzone.addEventListener('dragover', e=>{e.preventDefault(); dropzone.classList.add('drag');});
+  dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e=>{
+    e.preventDefault(); dropzone.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', e=>{
+    if(e.target.files.length) handleFiles(e.target.files);
+  });
+
+  function handleFiles(fileList){
+    const files = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
+    if(!files.length) return alert('कृपया इमेज फ़ाइल चुनें');
+    if(files.length===1){
+      readAsDataURL(files[0]).then(useImageDataURL);
+      return;
+    }
+    // multiple files -> show gallery to pick the best one
+    gallery.innerHTML='';
+    galleryTitle.style.display='block';
+    Promise.all(files.map(readAsDataURL)).then(urls=>{
+      urls.forEach(url=>{
+        const item = document.createElement('div');
+        item.className='gallery-item';
+        item.innerHTML = `<img src="${url}"><div class="pick">इस्तेमाल करें</div>`;
+        item.addEventListener('click', ()=>useImageDataURL(url));
+        gallery.appendChild(item);
+      });
+    });
+  }
+
+  function readAsDataURL(file){
+    return new Promise((res,rej)=>{
+      const reader = new FileReader();
+      reader.onload = ev=>res(ev.target.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function useImageDataURL(dataURL){
+    const img = new Image();
+    img.onload = ()=>{
+      state.img = img; state.naturalW = img.naturalWidth; state.naturalH = img.naturalHeight;
+      state.zoom=1; state.offX=0; state.offY=0; state.rotation=0; state.bgColor=null;
+      state.bright=100; state.contrast=100;
+      $('rotateRange').value=0; $('rotateVal').textContent='0°';
+      $('brightRange').value=100; $('brightVal').textContent='100%';
+      $('contrastRange').value=100; $('contrastVal').textContent='100%';
+      $('zoomRange').value=100; $('zoomVal').textContent='100%';
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+      document.querySelector('.swatch[data-color="none"]').classList.add('selected');
+      unlockStep(2); goStep(2);
+      setupFormat(); initCropStage();
+      updateChecklist();
+      updateQualityStat();
+      tryFaceDetect(img);
+    };
+    img.src = dataURL;
+  }
+
+  function updateChecklist(){
+    const key = state.fmtW+','+state.fmtH;
+    const items = CHECKLISTS[key];
+    const ul = $('checklist');
+    ul.innerHTML='';
+    if(items){ items.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); }); }
+  }
+
+  const qualitySelect = $('qualitySelect');
+  function updateQualityStat(){
+    state.dpiCrop = +qualitySelect.value;
+    const pxW = Math.round(state.fmtW/25.4*state.dpiCrop);
+    const pxH = Math.round(state.fmtH/25.4*state.dpiCrop);
+    $('qualityStat').textContent = pxW+' × '+pxH+' px';
+  }
+  qualitySelect.addEventListener('change', updateQualityStat);
+
+  // native face detection (progressive enhancement — only works in supporting browsers)
+  function tryFaceDetect(img){
+    if(typeof FaceDetector === 'undefined') return;
+    try{
+      const fd = new FaceDetector({maxDetectedFaces:1, fastMode:true});
+      fd.detect(img).then(faces=>{
+        if(faces && faces.length) autoCenterOnFace(faces[0].boundingBox);
+      }).catch(()=>{});
+    }catch(e){}
+  }
+
+  function autoCenterOnFace(box){
+    const {w,h} = frameSizePx();
+    const ovalH = h*0.62;
+    const desiredScale = ovalH / box.height;
+    let zoom = desiredScale / state.baseScale;
+    zoom = Math.max(0.5, Math.min(3, zoom));
+    state.zoom = zoom;
+    $('zoomRange').value = Math.round(zoom*100);
+    $('zoomVal').textContent = Math.round(zoom*100)+'%';
+    const scale = state.baseScale*zoom;
+    const dw = state.naturalW*scale, dh = state.naturalH*scale;
+    const fx = box.x + box.width/2, fy = box.y + box.height/2;
+    state.offX = (w/2) - ((w-dw)/2) - fx*scale;
+    state.offY = (h*0.46) - ((h-dh)/2) - fy*scale;
+    drawCrop();
+  }
+
+  // ---------- Format select ----------
+  const formatSelect = $('formatSelect'), customField = $('customSizeField');
+  formatSelect.addEventListener('change', ()=>{
+    if(formatSelect.value==='custom'){
+      customField.style.display='block';
+      $('checklist').innerHTML='';
+    } else {
+      customField.style.display='none';
+      const [w,h] = formatSelect.value.split(',').map(Number);
+      state.fmtW=w; state.fmtH=h;
+      initCropStage();
+      updateChecklist();
+      updateQualityStat();
+    }
+  });
+  $('customW').addEventListener('input', updateCustom);
+  $('customH').addEventListener('input', updateCustom);
+  function updateCustom(){
+    const w=parseFloat($('customW').value), h=parseFloat($('customH').value);
+    if(w>0 && h>0){ state.fmtW=w; state.fmtH=h; initCropStage(); updateQualityStat(); }
+  }
+  function setupFormat(){
+    const [w,h] = formatSelect.value.split(',').map(Number);
+    if(formatSelect.value!=='custom'){ state.fmtW=w; state.fmtH=h; }
+  }
+
+  // ---------- Crop stage ----------
+  function frameSizePx(){
+    // preview frame box, fit within ~380px keeping min/max reasonable
+    const ratio = state.fmtH/state.fmtW;
+    let w = 340;
+    let h = w*ratio;
+    if(h>460){ h=460; w=h/ratio; }
+    if(h<180){ h=180; w=h/ratio; }
+    return {w:Math.round(w), h:Math.round(h)};
+  }
+
+  function initCropStage(){
+    if(!state.img) return;
+    const {w,h} = frameSizePx();
+    [cropCanvas, overlayCanvas].forEach(c=>{ c.width=w; c.height=h; });
+    // initial zoom so image covers frame
+    const coverScale = Math.max(w/state.naturalW, h/state.naturalH);
+    state.zoom = 1;
+    state.baseScale = coverScale;
+    state.offX = 0; state.offY = 0;
+    drawCrop(); drawOverlay();
+  }
+
+  function drawCrop(showOriginal){
+    const w=cropCanvas.width, h=cropCanvas.height;
+    cctx.clearRect(0,0,w,h);
+    cctx.save();
+    cctx.translate(w/2, h/2);
+    cctx.rotate((showOriginal?0:state.rotation) * Math.PI/180);
+    cctx.translate(-w/2, -h/2);
+    cctx.filter = showOriginal ? 'none' : `brightness(${state.bright}%) contrast(${state.contrast}%)`;
+    const scale = state.baseScale*state.zoom;
+    const dw = state.naturalW*scale, dh = state.naturalH*scale;
+    const dx = (w-dw)/2 + state.offX;
+    const dy = (h-dh)/2 + state.offY;
+    cctx.drawImage(state.img, dx, dy, dw, dh);
+    cctx.filter = 'none';
+    cctx.restore();
+    if(state.bgColor && !showOriginal){
+      applyBackgroundReplace();
+    }
+  }
+
+  function drawOverlay(){
+    const w=overlayCanvas.width, h=overlayCanvas.height;
+    octx.clearRect(0,0,w,h);
+    octx.strokeStyle = 'rgba(194,59,59,0.55)';
+    octx.lineWidth = 1;
+    octx.setLineDash([4,3]);
+    // face oval guide
+    const ovalW = w*0.56, ovalH = h*0.62;
+    octx.beginPath();
+    octx.ellipse(w/2, h*0.46, ovalW/2, ovalH/2, 0, 0, Math.PI*2);
+    octx.stroke();
+    // eye line
+    octx.beginPath();
+    octx.moveTo(0, h*0.40); octx.lineTo(w, h*0.40);
+    octx.stroke();
+    // chin line
+    octx.beginPath();
+    octx.moveTo(0, h*0.78); octx.lineTo(w, h*0.78);
+    octx.stroke();
+    octx.setLineDash([]);
+    // corner registration marks
+    octx.strokeStyle = 'rgba(33,36,43,0.7)';
+    octx.lineWidth = 1.5;
+    const m=10;
+    [[m,m,1,1],[w-m,m,-1,1],[m,h-m,1,-1],[w-m,h-m,-1,-1]].forEach(([x,y,dx,dy])=>{
+      octx.beginPath();
+      octx.moveTo(x, y); octx.lineTo(x+dx*8, y);
+      octx.moveTo(x, y); octx.lineTo(x, y+dy*8);
+      octx.stroke();
+    });
+  }
+
+  // drag to pan
+  cropCanvas.addEventListener('mousedown', e=>{
+    state.dragging=true; state.lastX=e.clientX; state.lastY=e.clientY;
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!state.dragging) return;
+    state.offX += e.clientX-state.lastX;
+    state.offY += e.clientY-state.lastY;
+    state.lastX=e.clientX; state.lastY=e.clientY;
+    drawCrop();
+  });
+  window.addEventListener('mouseup', ()=>state.dragging=false);
+  // touch support
+  cropCanvas.addEventListener('touchstart', e=>{
+    const t=e.touches[0]; state.dragging=true; state.lastX=t.clientX; state.lastY=t.clientY;
+  });
+  cropCanvas.addEventListener('touchmove', e=>{
+    if(!state.dragging) return;
+    const t=e.touches[0];
+    state.offX += t.clientX-state.lastX;
+    state.offY += t.clientY-state.lastY;
+    state.lastX=t.clientX; state.lastY=t.clientY;
+    drawCrop(); e.preventDefault();
+  }, {passive:false});
+  cropCanvas.addEventListener('touchend', ()=>state.dragging=false);
+
+  $('zoomRange').addEventListener('input', e=>{
+    state.zoom = e.target.value/100;
+    $('zoomVal').textContent = e.target.value+'%';
+    drawCrop();
+  });
+  $('brightRange').addEventListener('input', e=>{
+    state.bright = +e.target.value; $('brightVal').textContent=e.target.value+'%'; drawCrop();
+  });
+  $('contrastRange').addEventListener('input', e=>{
+    state.contrast = +e.target.value; $('contrastVal').textContent=e.target.value+'%'; drawCrop();
+  });
+  $('tolRange').addEventListener('input', e=>{
+    state.tol = +e.target.value; $('tolVal').textContent = e.target.value;
+  });
+  $('rotateRange').addEventListener('input', e=>{
+    state.rotation = +e.target.value; $('rotateVal').textContent = e.target.value+'°';
+    drawCrop();
+  });
+
+  $('resetBtn').addEventListener('click', ()=>{
+    state.zoom=1; state.offX=0; state.offY=0; state.rotation=0;
+    state.bright=100; state.contrast=100; state.bgColor=null;
+    $('zoomRange').value=100; $('zoomVal').textContent='100%';
+    $('rotateRange').value=0; $('rotateVal').textContent='0°';
+    $('brightRange').value=100; $('brightVal').textContent='100%';
+    $('contrastRange').value=100; $('contrastVal').textContent='100%';
+    document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+    document.querySelector('.swatch[data-color="none"]').classList.add('selected');
+    initCropStage();
+  });
+
+  const beforeAfterBtn = $('beforeAfterBtn');
+  const showOriginalPreview = ()=>drawCrop(true);
+  const showEditedPreview = ()=>drawCrop(false);
+  beforeAfterBtn.addEventListener('mousedown', showOriginalPreview);
+  beforeAfterBtn.addEventListener('touchstart', e=>{showOriginalPreview(); e.preventDefault();}, {passive:false});
+  ['mouseup','mouseleave'].forEach(ev=>beforeAfterBtn.addEventListener(ev, showEditedPreview));
+  beforeAfterBtn.addEventListener('touchend', showEditedPreview);
+
+  $('autoEnhanceBtn').addEventListener('click', ()=>{
+    // histogram auto-contrast on current frame pixels
+    const w=cropCanvas.width, h=cropCanvas.height;
+    const data = cctx.getImageData(0,0,w,h);
+    let min=255,max=0;
+    for(let i=0;i<data.data.length;i+=4){
+      const lum = 0.299*data.data[i]+0.587*data.data[i+1]+0.114*data.data[i+2];
+      if(lum<min) min=lum; if(lum>max) max=lum;
+    }
+    const range = Math.max(max-min, 1);
+    const contrastBoost = Math.min(140, Math.round(100*(255/range)*0.6+40));
+    state.bright = 104; state.contrast = contrastBoost;
+    $('brightRange').value=104; $('brightVal').textContent='104%';
+    $('contrastRange').value=contrastBoost; $('contrastVal').textContent=contrastBoost+'%';
+    drawCrop();
+  });
+
+  // background swatches
+  document.querySelectorAll('.swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+      state.pendingBg = sw.dataset.color==='none' ? null : sw.dataset.color;
+    });
+  });
+  $('applyBgBtn').addEventListener('click', ()=>{
+    state.bgColor = state.pendingBg || null;
+    drawCrop();
+  });
+
+  const aiBtn = $('aiRemoveBtn');
+  aiBtn.addEventListener('click', aiRemoveBackground);
+
+  async function aiRemoveBackground(){
+    if(!state.pendingBg){ alert('पहले ऊपर से एक बैकग्राउंड कलर चुनें (सफ़ेद/नीला/लाल/ग्रे)'); return; }
+    const origText = aiBtn.textContent;
+    aiBtn.disabled = true;
+    aiBtn.classList.add('loading');
+    const setLabel = (t)=>{ aiBtn.innerHTML = '<span class="spinner"></span>'+t; };
+    try{
+      if(typeof bodyPix === 'undefined' || typeof tf === 'undefined'){
+        throw new Error('lib-not-loaded');
+      }
+      setLabel('मॉडल लोड हो रहा है...');
+      if(!window._bodyPixNet){
+        window._bodyPixNet = await bodyPix.load({architecture:'MobileNetV1', outputStride:16, multiplier:0.75, quantBytes:2});
+      }
+      setLabel('फोटो एनालाइज़ हो रही है...');
+      // clean base render (filters + rotation applied, no colour tint) before segmenting
+      state.bgColor = null;
+      drawCrop(false);
+      const w = cropCanvas.width, h = cropCanvas.height;
+      const segmentation = await window._bodyPixNet.segmentPerson(cropCanvas, {internalResolution:'medium', segmentationThreshold:0.7});
+      const mask = new Float32Array(w*h);
+      for(let i=0;i<segmentation.data.length;i++){ mask[i] = segmentation.data[i]===1 ? 0 : 1; } // 1 = background
+      const soft = boxBlurMask(mask, w, h, 2);
+      const imgData = cctx.getImageData(0,0,w,h);
+      const d = imgData.data;
+      const target = hexToRgb(state.pendingBg);
+      for(let idx=0; idx<w*h; idx++){
+        const a = soft[idx];
+        if(a<=0.02) continue;
+        const i=idx*4;
+        d[i]   = d[i]*(1-a)   + target[0]*a;
+        d[i+1] = d[i+1]*(1-a) + target[1]*a;
+        d[i+2] = d[i+2]*(1-a) + target[2]*a;
+      }
+      cctx.putImageData(imgData,0,0);
+    }catch(err){
+      console.error(err);
+      alert('AI मॉडल लोड नहीं हो पाया (इंटरनेट चेक करें) — इसकी जगह नीचे "मैनुअल कलर-मैच" इस्तेमाल करें।');
+    }finally{
+      aiBtn.disabled = false; aiBtn.classList.remove('loading'); aiBtn.textContent = origText;
+    }
+  }
+
+  function hexToRgb(hex){
+    const v = parseInt(hex.slice(1),16);
+    return [(v>>16)&255,(v>>8)&255,v&255];
+  }
+
+  function boxBlurMask(mask, w, h, radius){
+    // separable box blur on a Float32Array mask, a few passes ≈ gaussian
+    const tmp = new Float32Array(w*h);
+    const out = new Float32Array(w*h);
+    // horizontal
+    for(let y=0;y<h;y++){
+      let sum=0, count=0;
+      for(let x=-radius;x<=radius;x++){
+        const xi=Math.min(w-1,Math.max(0,x));
+        sum += mask[y*w+xi]; count++;
+      }
+      for(let x=0;x<w;x++){
+        tmp[y*w+x] = sum/count;
+        const xOut=Math.min(w-1,x-radius), xIn=Math.min(w-1,x+radius+1);
+        sum += mask[y*w+xIn] - mask[y*w+Math.max(0,xOut)];
+      }
+    }
+    // vertical
+    for(let x=0;x<w;x++){
+      let sum=0, count=0;
+      for(let y=-radius;y<=radius;y++){
+        const yi=Math.min(h-1,Math.max(0,y));
+        sum += tmp[yi*w+x]; count++;
+      }
+      for(let y=0;y<h;y++){
+        out[y*w+x] = sum/count;
+        const yOut=Math.min(h-1,y-radius), yIn=Math.min(h-1,y+radius+1);
+        sum += tmp[yIn*w+x] - tmp[Math.max(0,yOut)*w+x];
+      }
+    }
+    return out;
+  }
+
+  function applyBackgroundReplace(){
+    const w=cropCanvas.width, h=cropCanvas.height;
+    const imgData = cctx.getImageData(0,0,w,h);
+    const d = imgData.data;
+    const target = hexToRgb(state.bgColor);
+    const tol = state.tol*2.2;
+    // sample corner + edge colors as reference "background" colors
+    const samples = [];
+    const sampleAt = (x,y)=>{ const i=(y*w+x)*4; samples.push([d[i],d[i+1],d[i+2]]); };
+    const m=4;
+    sampleAt(m,m); sampleAt(w-m,m); sampleAt(m,h-m); sampleAt(w-m,h-m);
+    sampleAt(Math.floor(w/2),m); sampleAt(m,Math.floor(h/2)); sampleAt(w-m,Math.floor(h/2));
+
+    const visited = new Uint8Array(w*h);
+    const mask = new Float32Array(w*h); // 1 = background, 0 = subject
+    const stack = [];
+    const pushIfEdge = (x,y)=>{ if(x>=0&&x<w&&y>=0&&y<h) stack.push([x,y]); };
+    for(let x=0;x<w;x++){ pushIfEdge(x,0); pushIfEdge(x,h-1); }
+    for(let y=0;y<h;y++){ pushIfEdge(0,y); pushIfEdge(w-1,y); }
+
+    function closeToAnySample(r,g,b){
+      for(const s of samples){
+        const dist = Math.sqrt((r-s[0])**2+(g-s[1])**2+(b-s[2])**2);
+        if(dist<tol) return true;
+      }
+      return false;
+    }
+
+    while(stack.length){
+      const [x,y] = stack.pop();
+      const idx = y*w+x;
+      if(visited[idx]) continue;
+      visited[idx]=1;
+      const i=idx*4;
+      if(!closeToAnySample(d[i],d[i+1],d[i+2])) continue;
+      mask[idx]=1;
+      if(x>0) stack.push([x-1,y]);
+      if(x<w-1) stack.push([x+1,y]);
+      if(y>0) stack.push([x,y-1]);
+      if(y<h-1) stack.push([x,y+1]);
+    }
+
+    // feather the mask edges so the cut isn't hard/jagged
+    const soft = boxBlurMask(mask, w, h, 2);
+
+    for(let idx=0; idx<w*h; idx++){
+      const a = soft[idx];
+      if(a<=0.02) continue;
+      const i=idx*4;
+      d[i]   = d[i]*(1-a)   + target[0]*a;
+      d[i+1] = d[i+1]*(1-a) + target[1]*a;
+      d[i+2] = d[i+2]*(1-a) + target[2]*a;
+    }
+    cctx.putImageData(imgData,0,0);
+  }
+
+  // ---------- confirm crop -> build final photo ----------
+  $('confirmCropBtn').addEventListener('click', ()=>{
+    const pxW = Math.round(state.fmtW/25.4*state.dpiCrop);
+    const pxH = Math.round(state.fmtH/25.4*state.dpiCrop);
+    const out = document.createElement('canvas');
+    out.width=pxW; out.height=pxH;
+    const octx2 = out.getContext('2d');
+    octx2.drawImage(cropCanvas, 0,0,cropCanvas.width,cropCanvas.height, 0,0,pxW,pxH);
+    state.finalCanvas = out;
+    unlockStep(3); goStep(3);
+    updateSheetInfo(); renderSheet();
+  });
+  $('backTo1').addEventListener('click', ()=>goStep(1));
+  $('backTo2').addEventListener('click', ()=>goStep(2));
+
+  // ---------- Step 3: sheet ----------
+  const sheetSelect = $('sheetSelect'), copiesRange=$('copiesRange'), sheetQualitySelect=$('sheetQualitySelect');
+  sheetSelect.addEventListener('change', ()=>{ updateSheetInfo(); renderSheet(); });
+  sheetQualitySelect.addEventListener('change', ()=>{
+    state.dpiSheet = +sheetQualitySelect.value;
+    updateSheetInfo(); renderSheet();
+  });
+  copiesRange.addEventListener('input', ()=>{
+    $('copiesVal').textContent = copiesRange.value;
+    renderSheet();
+  });
+
+  function getSheetMM(){
+    return sheetSelect.value.split(',').map(Number);
+  }
+  function computeGrid(){
+    const [sw, sh] = getSheetMM();
+    const outerM = 5, gap = 3;
+    const cols = Math.max(1, Math.floor((sw - 2*outerM + gap) / (state.fmtW + gap)));
+    const rows = Math.max(1, Math.floor((sh - 2*outerM + gap) / (state.fmtH + gap)));
+    return {cols, rows, outerM, gap, sw, sh};
+  }
+  function updateSheetInfo(){
+    const g = computeGrid();
+    const maxFit = g.cols*g.rows;
+    $('maxFit').textContent = maxFit;
+    $('gridInfo').textContent = g.cols+' × '+g.rows;
+    copiesRange.max = maxFit;
+    if(+copiesRange.value>maxFit) copiesRange.value = maxFit;
+    $('copiesVal').textContent = copiesRange.value;
+    const pxW = Math.round(g.sw/25.4*state.dpiSheet);
+    const pxH = Math.round(g.sh/25.4*state.dpiSheet);
+    $('sheetQualityStat').textContent = pxW+' × '+pxH+' px';
+  }
+
+  function renderSheet(){
+    if(!state.finalCanvas) return;
+    const g = computeGrid();
+    state.sheetMM = {w:g.sw, h:g.sh};
+    const dpi = state.dpiSheet;
+    const mmToPx = mm => Math.round(mm/25.4*dpi);
+    const sheetCanvas = $('sheetCanvas');
+    const W = mmToPx(g.sw), H = mmToPx(g.sh);
+    sheetCanvas.width=W; sheetCanvas.height=H;
+    const sctx = sheetCanvas.getContext('2d');
+    sctx.fillStyle='#fff'; sctx.fillRect(0,0,W,H);
+
+    const photoWpx = mmToPx(state.fmtW), photoHpx = mmToPx(state.fmtH);
+    const gapPx = mmToPx(g.gap), outerPx = mmToPx(g.outerM);
+    let count = +copiesRange.value;
+    const markLen = mmToPx(3);
+
+    outer:
+    for(let r=0;r<g.rows;r++){
+      for(let c=0;c<g.cols;c++){
+        if(count<=0) break outer;
+        const x = outerPx + c*(photoWpx+gapPx);
+        const y = outerPx + r*(photoHpx+gapPx);
+        sctx.drawImage(state.finalCanvas, x, y, photoWpx, photoHpx);
+        // crop marks
+        sctx.strokeStyle='#C23B3B'; sctx.lineWidth=Math.max(1,dpi/150);
+        const corners = [[x,y,1,1],[x+photoWpx,y,-1,1],[x,y+photoHpx,1,-1],[x+photoWpx,y+photoHpx,-1,-1]];
+        corners.forEach(([cx,cy,dx,dy])=>{
+          sctx.beginPath();
+          sctx.moveTo(cx,cy); sctx.lineTo(cx+dx*markLen, cy);
+          sctx.moveTo(cx,cy); sctx.lineTo(cx, cy+dy*markLen);
+          sctx.stroke();
+        });
+        count--;
+      }
+    }
+  }
+
+  $('downloadSheetBtn').addEventListener('click', ()=>{
+    const sheetCanvas = $('sheetCanvas');
+    const a = document.createElement('a');
+    a.download = 'passport-photo-sheet.png';
+    a.href = sheetCanvas.toDataURL('image/png');
+    a.click();
+  });
+  $('downloadSingleBtn').addEventListener('click', ()=>{
+    if(!state.finalCanvas) return;
+    const a = document.createElement('a');
+    a.download = 'passport-photo.png';
+    a.href = state.finalCanvas.toDataURL('image/png');
+    a.click();
+  });
+
+  $('downloadPdfBtn').addEventListener('click', ()=>{
+    if(!state.sheetMM || typeof window.jspdf === 'undefined'){
+      alert('PDF लाइब्रेरी लोड नहीं हो पाई — कृपया इंटरनेट कनेक्शन चेक करें और PNG डाउनलोड इस्तेमाल करें।');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const {w,h} = state.sheetMM;
+    const orientation = w>h ? 'l' : 'p';
+    const pdf = new jsPDF({unit:'mm', format:[w,h], orientation});
+    const imgData = $('sheetCanvas').toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', 0, 0, w, h);
+    pdf.save('passport-photo-sheet.pdf');
+  });
+
+})();
+</script>
+</body>
+</html>
