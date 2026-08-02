@@ -40,7 +40,7 @@
   /* ===== Header ===== */
   header{
     padding:22px 20px 0;
-    max-width:1100px;
+    max-width:640px;
     margin:0 auto;
   }
   .brand{
@@ -118,17 +118,16 @@
   .frame.done .num::after{content:' ✓';}
   .frame.disabled{cursor:not-allowed; opacity:.45;}
 
-  main{max-width:1100px; margin:0 auto; padding:0 20px 60px;}
+  main{max-width:640px; margin:0 auto; padding:0 20px 60px;}
   .step{display:none;}
   .step.active{display:block; animation:fade .25s ease;}
   @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
 
   .grid2{
     display:grid;
-    grid-template-columns:340px 1fr;
+    grid-template-columns:1fr;
     gap:24px;
   }
-  @media (max-width:820px){ .grid2{grid-template-columns:1fr;} }
 
   .panel{
     background:var(--card);
@@ -276,7 +275,7 @@
   .stat b{color:var(--ink); display:block; font-size:18px; font-family:'Barlow Condensed',sans-serif;}
 
   footer{
-    max-width:1100px; margin:0 auto; padding:0 20px 40px;
+    max-width:640px; margin:0 auto; padding:0 20px 40px;
     color:var(--ink-soft); font-size:12px; font-family:'IBM Plex Mono',monospace;
   }
   footer .rule{border-top:1px dashed var(--line); margin:24px 0 14px;}
@@ -465,6 +464,36 @@
         </div>
         <div class="note-box">🤖 <b>AI रिमूव</b> पहली बार चलाने पर एक छोटा मॉडल (~1-3MB, Google MediaPipe) डाउनलोड करता है, इंटरनेट चाहिए, पर किसी भी बैकग्राउंड पर सटीक काम करता है। <b>मैनुअल कलर-मैच</b> पूरी तरह ऑफलाइन चलता है, पर सिर्फ़ प्लेन/एक-रंग बैकग्राउंड पर अच्छा रिज़ल्ट देता है। AI लगाने के बाद अगर ज़ूम/ब्राइटनेस/रोटेट बदला तो दोबारा "AI रिमूव" दबाना होगा।</div>
 
+        <h3 style="margin-top:22px;">🪄 एक-क्लिक स्टूडियो लुक</h3>
+        <p class="hint" style="text-align:left; margin-top:0;">किसी भी कैज़ुअल फोटो को एक क्लिक में AI बैकग्राउंड + ऑटो एन्हांस के साथ स्टूडियो लुक देगा</p>
+        <div class="field">
+          <label>बैकग्राउंड कलर</label>
+          <div class="swatches" id="magicSwatches">
+            <div class="swatch selected" data-color="#FFFFFF" style="background:#fff;" title="सफ़ेद"></div>
+            <div class="swatch" data-color="#3F7BC4" style="background:#3F7BC4;" title="हल्का नीला"></div>
+            <div class="swatch" data-color="#B9BDC2" style="background:#B9BDC2;" title="ग्रे"></div>
+          </div>
+        </div>
+        <button class="accent" id="magicBtn" type="button" style="width:100%;">🪄 ऑटो स्टूडियो लुक बनाएं</button>
+
+        <h3 style="margin-top:22px;">फोटो बॉर्डर</h3>
+        <div class="field">
+          <label>मोटाई</label>
+          <select id="borderWidthSelect">
+            <option value="0">बिना बॉर्डर</option>
+            <option value="0.6">पतला (0.6mm)</option>
+            <option value="1.2">मोटा (1.2mm)</option>
+          </select>
+        </div>
+        <div class="field" id="borderColorField" style="display:none;">
+          <label>बॉर्डर कलर</label>
+          <div class="swatches" id="borderSwatches">
+            <div class="swatch selected" data-color="#FFFFFF" style="background:#fff;" title="सफ़ेद"></div>
+            <div class="swatch" data-color="#21242B" style="background:#21242B;" title="काला"></div>
+            <div class="swatch" data-color="#8A8578" style="background:#8A8578;" title="ग्रे"></div>
+          </div>
+        </div>
+
         <div class="btn-row" style="margin-top:20px;">
           <button class="secondary" id="backTo1">← वापस</button>
           <button class="accent" id="confirmCropBtn">फोटो कन्फर्म करें →</button>
@@ -503,6 +532,15 @@
             <span class="mono" id="colVal" style="font-size:16px; min-width:24px; text-align:center;">6</span>
             <button class="icon-btn" id="colInc" type="button" style="padding:8px 14px; font-size:16px;">+</button>
             <span class="hint" id="colMaxNote" style="margin:0; text-align:left;"></span>
+          </div>
+        </div>
+        <div class="field">
+          <label>फोटो प्रति कॉलम (रो)</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="icon-btn" id="rowDec" type="button" style="padding:8px 14px; font-size:16px;">−</button>
+            <span class="mono" id="rowVal" style="font-size:16px; min-width:24px; text-align:center;">6</span>
+            <button class="icon-btn" id="rowInc" type="button" style="padding:8px 14px; font-size:16px;">+</button>
+            <span class="hint" id="rowMaxNote" style="margin:0; text-align:left;"></span>
           </div>
         </div>
         <div class="field">
@@ -564,7 +602,8 @@
     bgColor:null, tol:40,
     finalCanvas:null,
     dpiCrop:300, dpiSheet:300,
-    sheetMM:null, cols:6
+    sheetMM:null, cols:6, rows:6,
+    borderWidth:0, borderColor:'#FFFFFF'
   };
 
   const CHECKLISTS = {
@@ -654,8 +693,8 @@
       $('brightRange').value=100; $('brightVal').textContent='100%';
       $('contrastRange').value=100; $('contrastVal').textContent='100%';
       $('zoomRange').value=100; $('zoomVal').textContent='100%';
-      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
-      document.querySelector('.swatch[data-color="none"]').classList.add('selected');
+      document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
+      document.querySelector('#bgSwatches .swatch[data-color="none"]').classList.add('selected');
       unlockStep(2); goStep(2);
       setupFormat(); initCropStage();
       updateChecklist();
@@ -863,8 +902,8 @@
     $('rotateRange').value=0; $('rotateVal').textContent='0°';
     $('brightRange').value=100; $('brightVal').textContent='100%';
     $('contrastRange').value=100; $('contrastVal').textContent='100%';
-    document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
-    document.querySelector('.swatch[data-color="none"]').classList.add('selected');
+    document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
+    document.querySelector('#bgSwatches .swatch[data-color="none"]').classList.add('selected');
     initCropStage();
   });
 
@@ -876,7 +915,7 @@
   ['mouseup','mouseleave'].forEach(ev=>beforeAfterBtn.addEventListener(ev, showEditedPreview));
   beforeAfterBtn.addEventListener('touchend', showEditedPreview);
 
-  $('autoEnhanceBtn').addEventListener('click', ()=>{
+  function autoEnhance(){
     // histogram auto-contrast on current frame pixels
     const w=cropCanvas.width, h=cropCanvas.height;
     const data = cctx.getImageData(0,0,w,h);
@@ -891,12 +930,51 @@
     $('brightRange').value=104; $('brightVal').textContent='104%';
     $('contrastRange').value=contrastBoost; $('contrastVal').textContent=contrastBoost+'%';
     drawCrop();
+  }
+  $('autoEnhanceBtn').addEventListener('click', autoEnhance);
+
+  // ---------- Magic one-click studio look ----------
+  state.magicBg = '#FFFFFF';
+  document.querySelectorAll('#magicSwatches .swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.querySelectorAll('#magicSwatches .swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+      state.magicBg = sw.dataset.color;
+    });
+  });
+  $('magicBtn').addEventListener('click', async ()=>{
+    const btn = $('magicBtn');
+    const orig = btn.textContent;
+    btn.disabled = true;
+    try{
+      tryFaceDetect(state.img);
+      await new Promise(r=>setTimeout(r,60));
+      autoEnhance();
+      state.pendingBg = state.magicBg;
+      document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
+      const match = document.querySelector('#bgSwatches .swatch[data-color="'+state.magicBg+'"]');
+      if(match) match.classList.add('selected');
+      await aiRemoveBackground();
+    } finally {
+      btn.disabled = false; btn.textContent = orig;
+    }
   });
 
-  // background swatches
-  document.querySelectorAll('.swatch').forEach(sw=>{
+  const borderWidthSelect = $('borderWidthSelect'), borderColorField = $('borderColorField');
+  borderWidthSelect.addEventListener('change', ()=>{
+    state.borderWidth = +borderWidthSelect.value;
+    borderColorField.style.display = state.borderWidth>0 ? 'block' : 'none';
+  });
+  document.querySelectorAll('#borderSwatches .swatch').forEach(sw=>{
     sw.addEventListener('click', ()=>{
-      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+      document.querySelectorAll('#borderSwatches .swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+      state.borderColor = sw.dataset.color;
+    });
+  });
+  document.querySelectorAll('#bgSwatches .swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
       sw.classList.add('selected');
       state.pendingBg = sw.dataset.color==='none' ? null : sw.dataset.color;
     });
@@ -1072,25 +1150,28 @@
     out.width=pxW; out.height=pxH;
     const octx2 = out.getContext('2d');
     octx2.drawImage(cropCanvas, 0,0,cropCanvas.width,cropCanvas.height, 0,0,pxW,pxH);
+    if(state.borderWidth>0){
+      const bw = Math.round(state.borderWidth/25.4*state.dpiCrop);
+      octx2.strokeStyle = state.borderColor;
+      octx2.lineWidth = bw;
+      octx2.strokeRect(bw/2, bw/2, pxW-bw, pxH-bw);
+    }
     state.finalCanvas = out;
     unlockStep(3); goStep(3);
-    updateSheetInfo(); renderSheet();
+    fillGridAndRender();
   });
   $('backTo1').addEventListener('click', ()=>goStep(1));
   $('backTo2').addEventListener('click', ()=>goStep(2));
 
   // ---------- Step 3: sheet ----------
   const sheetSelect = $('sheetSelect'), copiesRange=$('copiesRange'), sheetQualitySelect=$('sheetQualitySelect');
-  sheetSelect.addEventListener('change', ()=>{ updateSheetInfo(); renderSheet(); });
+  sheetSelect.addEventListener('change', ()=>{ fillGridAndRender(); });
   sheetQualitySelect.addEventListener('change', ()=>{
     state.dpiSheet = +sheetQualitySelect.value;
     updateSheetInfo(); renderSheet();
   });
   copiesRange.addEventListener('input', ()=>{
     $('copiesVal').textContent = copiesRange.value;
-    const g = computeGrid();
-    const actualRows = Math.min(g.rows, Math.ceil(+copiesRange.value/g.cols));
-    $('gridInfo').textContent = g.cols+' × '+actualRows;
     renderSheet();
   });
 
@@ -1103,28 +1184,40 @@
     const maxCols = Math.max(1, Math.floor((sw - 2*outerM + gap) / (state.fmtW + gap)));
     const maxRows = Math.max(1, Math.floor((sh - 2*outerM + gap) / (state.fmtH + gap)));
     state.cols = Math.min(Math.max(1, state.cols||maxCols), maxCols);
-    return {cols: state.cols, maxCols, rows: maxRows, outerM, gap, sw, sh};
+    state.rows = Math.min(Math.max(1, state.rows||maxRows), maxRows);
+    return {cols: state.cols, maxCols, rows: state.rows, maxRows, outerM, gap, sw, sh};
   }
   function updateSheetInfo(){
     const g = computeGrid();
     const maxFit = g.cols*g.rows;
     $('maxFit').textContent = maxFit;
     copiesRange.max = maxFit;
-    if(+copiesRange.value>maxFit) copiesRange.value = maxFit;
-    $('copiesVal').textContent = copiesRange.value;
     $('colVal').textContent = g.cols;
     $('colDec').disabled = g.cols<=1;
     $('colInc').disabled = g.cols>=g.maxCols;
-    $('colMaxNote').textContent = g.cols>=g.maxCols ? '(इस शीट पर अधिकतम)' : '';
-    const actualRows = Math.min(g.rows, Math.ceil(+copiesRange.value/g.cols));
-    $('gridInfo').textContent = g.cols+' × '+actualRows;
+    $('colMaxNote').textContent = g.cols>=g.maxCols ? '(अधिकतम)' : '';
+    $('rowVal').textContent = g.rows;
+    $('rowDec').disabled = g.rows<=1;
+    $('rowInc').disabled = g.rows>=g.maxRows;
+    $('rowMaxNote').textContent = g.rows>=g.maxRows ? '(अधिकतम)' : '';
+    $('gridInfo').textContent = g.cols+' × '+g.rows;
     const pxW = Math.round(g.sw/25.4*state.dpiSheet);
     const pxH = Math.round(g.sh/25.4*state.dpiSheet);
     $('sheetQualityStat').textContent = pxW+' × '+pxH+' px';
   }
 
-  $('colDec').addEventListener('click', ()=>{ state.cols = Math.max(1, state.cols-1); updateSheetInfo(); renderSheet(); });
-  $('colInc').addEventListener('click', ()=>{ state.cols = state.cols+1; updateSheetInfo(); renderSheet(); });
+  function fillGridAndRender(){
+    const g = computeGrid();
+    copiesRange.value = g.cols*g.rows;
+    $('copiesVal').textContent = copiesRange.value;
+    updateSheetInfo();
+    renderSheet();
+  }
+
+  $('colDec').addEventListener('click', ()=>{ state.cols = Math.max(1, state.cols-1); fillGridAndRender(); });
+  $('colInc').addEventListener('click', ()=>{ state.cols = state.cols+1; fillGridAndRender(); });
+  $('rowDec').addEventListener('click', ()=>{ state.rows = Math.max(1, state.rows-1); fillGridAndRender(); });
+  $('rowInc').addEventListener('click', ()=>{ state.rows = state.rows+1; fillGridAndRender(); });
 
   function renderSheet(){
     if(!state.finalCanvas) return;
