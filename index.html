@@ -280,6 +280,14 @@
         </div>
         <p class="text-[11px] text-slate-500 -mt-1">"Fill sheet" repeats your currently selected photo across the whole page — same idea as the MS Word copy-paste-into-every-cell trick. "Split evenly" divides the page equally between every uploaded photo.</p>
 
+        <div class="border-t pt-3">
+          <label class="flex items-center gap-2 text-sm mb-2"><input id="rowAssignEnabled" type="checkbox">Different photo per row (multi-photo sheet)</label>
+          <div id="rowAssignPanel" class="hidden space-y-1.5">
+            <p class="text-[11px] text-slate-500 mb-1">Pick which uploaded photo fills each row of the sheet.</p>
+            <div id="rowAssignList" class="space-y-1.5 text-sm"></div>
+          </div>
+        </div>
+
         <div id="photoQtyPanel" class="hidden border-t pt-3 space-y-1.5">
           <div class="flex items-center justify-between mb-1">
             <p class="text-xs font-medium">How many copies of each photo?</p>
@@ -341,6 +349,8 @@ let photos = [];
 let activeId = null;
 let sizePresetId = "india-passport";
 let nextId = 1;
+let rowAssignmentMode = false;
+let rowPhotoIds = []; // photo id assigned to each row of the print sheet, used when rowAssignmentMode is on
 
 function defaultAdjustments(){ return { brightness:0, contrast:0, saturation:0, sharpness:0, zoom:100, rotate:0, panX:0, panY:0 }; }
 function defaultBackground(){ return { type:"white", color:"#FFFFFF" }; }
@@ -408,6 +418,7 @@ function handleFiles(fileList){
     loadControlsFromActive();
     renderPreview();
     renderPhotoQtyList();
+    renderRowAssignList();
   });
 }
 function showUploadError(msg){ uploadError.textContent = msg; uploadError.classList.remove("hidden"); }
@@ -440,6 +451,7 @@ function removePhoto(id, evt){
   loadControlsFromActive();
   renderPreview();
   renderPhotoQtyList();
+  renderRowAssignList();
 }
 window.selectPhoto = selectPhoto;
 window.removePhoto = removePhoto;
@@ -451,7 +463,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click
   const tab = btn.dataset.tab;
   $("tab-editor").classList.toggle("hidden", tab!=="editor");
   $("tab-print").classList.toggle("hidden", tab!=="print");
-  if (tab==="print") { $("printSizePreset").value = sizePresetId; renderPhotoQtyList(); renderPrintPreview(); }
+  if (tab==="print") { $("printSizePreset").value = sizePresetId; renderPhotoQtyList(); renderRowAssignList(); renderPrintPreview(); }
 }));
 
 /* ===================== Background removal: AI (with CDN fallbacks) ===================== */
@@ -921,6 +933,7 @@ window.downloadPhoto = downloadPhoto;
 function fillPageWithActivePhoto(){
   const p = activePhoto();
   if (!p) return;
+  if (rowAssignmentMode){ $("rowAssignEnabled").checked = false; rowAssignmentMode = false; renderRowAssignList(); }
   const s = currentPrintSettings();
   const grid = calculateGrid({
     photoW: s.preset.w, photoH: s.preset.h,
@@ -936,6 +949,7 @@ window.fillPageWithActivePhoto = fillPageWithActivePhoto;
 /* ===================== Print quantity list (how many of each photo) ===================== */
 function splitEvenlyAcrossPhotos(){
   if (!photos.length) return;
+  if (rowAssignmentMode){ $("rowAssignEnabled").checked = false; rowAssignmentMode = false; renderRowAssignList(); }
   const s = currentPrintSettings();
   const grid = calculateGrid({
     photoW: s.preset.w, photoH: s.preset.h,
@@ -967,8 +981,9 @@ function renderPhotoQtyList(){
   const panel = $("photoQtyPanel");
   const splitBtn = $("splitEvenlyBtn");
   // Only show manual per-photo quantities once there's more than one photo — with a single
-  // photo, "Fill sheet" already does the job.
-  const multi = photos.length > 1;
+  // photo, "Fill sheet" already does the job. Also hidden while row-assignment mode is active,
+  // since row assignment overrides per-photo quantities.
+  const multi = photos.length > 1 && !rowAssignmentMode;
   panel.classList.toggle("hidden", !multi);
   splitBtn.classList.toggle("hidden", !multi);
   if (!multi) return;
@@ -996,6 +1011,57 @@ function renderPhotoQtyList(){
   $("qtyTotalNote").textContent = `${total} photo${total===1?"":"s"} selected across ${photos.length} uploads`;
 }
 
+/* ===================== Row-based multi-photo assignment ===================== */
+function currentGridForSettings(){
+  const s = currentPrintSettings();
+  return calculateGrid({ photoW:s.preset.w, photoH:s.preset.h, targetColumns:s.columns, targetRows:s.rows, autoRows:s.autoRows, marginMm:s.margin, spacingMm:s.spacing, pageW:s.pageW, pageH:s.pageH });
+}
+
+$("rowAssignEnabled").addEventListener("change", ()=>{
+  rowAssignmentMode = $("rowAssignEnabled").checked;
+  renderRowAssignList();
+  renderPhotoQtyList();
+  renderPrintPreview();
+});
+
+function renderRowAssignList(){
+  const enabled = $("rowAssignEnabled").checked;
+  rowAssignmentMode = enabled;
+  $("rowAssignPanel").classList.toggle("hidden", !enabled);
+  if (!enabled || !photos.length){ return; }
+
+  const grid = currentGridForSettings();
+  const rows = grid.rows;
+  const newIds = [];
+  for (let r=0;r<rows;r++){
+    let id = rowPhotoIds[r];
+    if (!id || !photos.find(p=>p.id===id)) id = photos[r % photos.length].id;
+    newIds.push(id);
+  }
+  rowPhotoIds = newIds;
+
+  const wrap = $("rowAssignList");
+  wrap.innerHTML = rowPhotoIds.map((id,r) => {
+    const photo = photos.find(p=>p.id===id);
+    return `<div class="flex items-center gap-2">
+      <span class="text-xs text-slate-500 w-12 shrink-0">Row ${r+1}</span>
+      <img src="${photo ? photo.originalImg.src : ''}" class="h-8 w-8 rounded object-cover border shrink-0">
+      <select data-row="${r}" class="rowPhotoSelect flex-1 border rounded-lg px-2 py-1 text-sm min-w-0">
+        ${photos.map(p=>`<option value="${p.id}" ${p.id===id?'selected':''}>${p.name}</option>`).join("")}
+      </select>
+    </div>`;
+  }).join("");
+  wrap.querySelectorAll(".rowPhotoSelect").forEach(sel=>{
+    sel.addEventListener("change", e=>{
+      const r = Number(e.target.dataset.row);
+      rowPhotoIds[r] = e.target.value;
+      renderRowAssignList();
+      renderPrintPreview();
+    });
+  });
+}
+window.renderRowAssignList = renderRowAssignList;
+
 /* ===================== Paper size handling ===================== */
 $("paperPreset").addEventListener("change", ()=>{
   const val = $("paperPreset").value;
@@ -1007,6 +1073,7 @@ $("paperPreset").addEventListener("change", ()=>{
   $("autoGrid").disabled = isFit;
   if (isFit) $("autoGrid").checked = false;
   $("rowsInput").disabled = isFit ? false : $("autoGrid").checked;
+  if (rowAssignmentMode) renderRowAssignList();
   renderPrintPreview();
 });
 function currentPaper(){
@@ -1019,6 +1086,7 @@ function currentPaper(){
 $("autoGrid").addEventListener("change", ()=>{
   const auto = $("autoGrid").checked;
   $("rowsInput").disabled = auto;
+  if (rowAssignmentMode) renderRowAssignList();
   renderPrintPreview();
 });
 
@@ -1101,8 +1169,19 @@ function currentPrintSettings(){
   };
 }
 
-/** Builds an ordered queue of photos to print, cycling through uploads according to their quantities. */
-function buildPrintQueue(totalSlots){
+/** Builds an ordered queue of photos to print, cycling through uploads according to their quantities
+ *  (or, in row-assignment mode, filling each row with its assigned photo). */
+function buildPrintQueue(grid){
+  const totalSlots = grid.total;
+  if (rowAssignmentMode && photos.length){
+    const queue = [];
+    for (let r=0;r<grid.rows;r++){
+      const id = rowPhotoIds[r] || (photos[r % photos.length] && photos[r % photos.length].id);
+      const photo = photos.find(p=>p.id===id) || photos[0];
+      for (let c=0;c<grid.columns;c++) queue.push(photo);
+    }
+    return { queue, leftover: 0, requested: totalSlots };
+  }
   const wanted = [];
   photos.forEach(p => { for (let i=0;i<p.printQty;i++) wanted.push(p); });
   if (!wanted.length) return { queue: [], leftover: 0 };
@@ -1120,7 +1199,7 @@ function renderPrintPreview(){
   const sheet = $("sheetPreview");
   sheet.style.aspectRatio = `${grid.pageW}/${grid.pageH}`;
 
-  const { queue, leftover, requested } = buildPrintQueue(grid.total);
+  const { queue, leftover, requested } = buildPrintQueue(grid);
   const thumbCache = new Map();
   function thumbFor(photo){
     if (thumbCache.has(photo.id)) return thumbCache.get(photo.id);
@@ -1147,15 +1226,15 @@ function renderPrintPreview(){
   $("gridInfo").textContent = info;
 }
 ["printSizePreset","orientation","dpi","columns","rowsInput","spacing","margin","cutBorders","customPaperW","customPaperH"].forEach(id=>{
-  $(id).addEventListener("input", renderPrintPreview);
-  $(id).addEventListener("change", renderPrintPreview);
+  $(id).addEventListener("input", ()=>{ if (rowAssignmentMode) renderRowAssignList(); renderPrintPreview(); });
+  $(id).addEventListener("change", ()=>{ if (rowAssignmentMode) renderRowAssignList(); renderPrintPreview(); });
 });
 
 /* ===================== Build & download the real high-res print sheet ===================== */
 async function buildSheetCanvas(){
   const s = currentPrintSettings();
   const grid = calculateGrid({ photoW:s.preset.w, photoH:s.preset.h, targetColumns:s.columns, targetRows:s.rows, autoRows:s.autoRows, marginMm:s.margin, spacingMm:s.spacing, pageW:s.pageW, pageH:s.pageH });
-  const { queue } = buildPrintQueue(grid.total);
+  const { queue } = buildPrintQueue(grid);
 
   const sheet = document.createElement("canvas");
   sheet.width = mmToPx(grid.pageW, s.dpi);
