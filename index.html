@@ -1,1293 +1,909 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>पासपोर्ट फोटो स्टूडियो</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Studio Passport Photo Maker</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
 <style>
-  :root{
-    --paper:#EFEDE7;
-    --paper-alt:#E4E1D6;
-    --card:#FBFAF7;
-    --ink:#21242B;
-    --ink-soft:#5B5F68;
-    --line:#CBC6B8;
-    --red:#C23B3B;
-    --red-soft:#E8D3D3;
-    --blue:#35597A;
-    --blue-soft:#DCE4EA;
-    --white:#FFFFFF;
-    --radius:2px;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:var(--paper);
-    background-image:
-      linear-gradient(var(--paper) 1px, transparent 1px),
-      linear-gradient(90deg, var(--paper) 1px, transparent 1px);
-    color:var(--ink);
-    font-family:'IBM Plex Sans',sans-serif;
-    min-height:100vh;
-  }
-  .display{font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.04em;}
-  .mono{font-family:'IBM Plex Mono',monospace;}
-
-  /* ===== Header ===== */
-  header{
-    padding:22px 20px 0;
-    max-width:640px;
-    margin:0 auto;
-  }
-  .brand{
-    display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
-  }
-  .brand h1{
-    font-family:'Barlow Condensed',sans-serif;
-    font-weight:700;
-    font-size:clamp(28px,5vw,42px);
-    letter-spacing:0.02em;
-    margin:0;
-    text-transform:uppercase;
-  }
-  .brand .tag{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:12px;
-    color:var(--ink-soft);
-    border:1px solid var(--line);
-    padding:3px 8px;
-    border-radius:2px;
-    background:var(--card);
-  }
-  .sub{
-    color:var(--ink-soft);
-    font-size:14.5px;
-    margin:6px 0 18px;
-    max-width:640px;
-    line-height:1.5;
-  }
-
-  /* ===== Filmstrip step nav ===== */
-  .filmstrip{
-    display:flex;
-    background:var(--ink);
-    border-radius:3px;
-    overflow:hidden;
-    margin-bottom:22px;
-    box-shadow:0 1px 0 rgba(0,0,0,.05);
-  }
-  .frame{
-    flex:1;
-    position:relative;
-    padding:12px 14px 12px 16px;
-    color:#B9BCC4;
-    cursor:pointer;
-    border-right:1px dashed #45484F;
-    transition:background .18s ease, color .18s ease;
-    display:flex;
-    flex-direction:column;
-    gap:2px;
-  }
-  button:focus-visible, select:focus-visible, input:focus-visible, .frame:focus-visible, .swatch:focus-visible{
-    outline:2px solid var(--red); outline-offset:2px;
-  }
-  .frame:last-child{border-right:none;}
-  .frame::before, .frame::after{
-    content:'';
-    position:absolute; left:6px; width:6px; height:6px;
-    background:var(--paper); border-radius:1px;
-  }
-  .frame::before{top:4px;} .frame::after{bottom:4px;}
-  .frame .num{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:11px;
-    opacity:.75;
-  }
-  .frame .label{
-    font-family:'Barlow Condensed',sans-serif;
-    font-weight:600;
-    letter-spacing:.04em;
-    font-size:17px;
-    text-transform:uppercase;
-  }
-  .frame.active{background:var(--red); color:#fff;}
-  .frame.done .num::after{content:' ✓';}
-  .frame.disabled{cursor:not-allowed; opacity:.45;}
-
-  main{max-width:640px; margin:0 auto; padding:0 20px 60px;}
-  .step{display:none;}
-  .step.active{display:block; animation:fade .25s ease;}
-  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
-
-  .grid2{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:24px;
-  }
-
-  .panel{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    padding:18px;
-    box-shadow:0 1px 2px rgba(33,36,43,.04), 0 6px 20px rgba(33,36,43,.03);
-  }
+  :root{ --studio:#2f5cf5; }
+  body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  .glass{ background:rgba(255,255,255,.7); backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); border:1px solid rgba(255,255,255,.6); }
+  .mesh{ background-image: radial-gradient(55% 45% at 15% 10%, rgba(47,92,245,.15), transparent 60%), radial-gradient(45% 40% at 90% 10%, rgba(86,135,255,.13), transparent 60%); }
+  .tab-btn.active{ background:var(--studio); color:#fff; }
+  input[type=range]{ accent-color:var(--studio); }
+  ::-webkit-scrollbar{ width:8px; height:8px; } ::-webkit-scrollbar-thumb{ background:#c7d2fe; border-radius:99px; }
+  .spinner{ border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; width:22px; height:22px; animation:spin 0.8s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
-  .spinner{
-    display:inline-block; width:13px; height:13px;
-    border:2px solid rgba(255,255,255,.35); border-top-color:#fff;
-    border-radius:50%; animation:spin .7s linear infinite;
-    margin-right:7px; vertical-align:-2px;
-  }
-  button.loading{ opacity:.85; cursor:progress; }
-  .quality-readout{
-    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft);
-    margin-top:6px; display:flex; justify-content:space-between;
-    border-top:1px dashed var(--line); padding-top:6px;
-  }
-  .quality-readout b{color:var(--ink); font-weight:600;}
-  .panel h3{
-    font-family:'Barlow Condensed',sans-serif;
-    text-transform:uppercase;
-    font-size:15px;
-    letter-spacing:.05em;
-    color:var(--ink-soft);
-    margin:0 0 12px;
-    padding-bottom:8px;
-    border-bottom:1px solid var(--line);
-  }
-  .field{margin-bottom:16px;}
-  .field label{
-    display:block;
-    font-size:12.5px;
-    color:var(--ink-soft);
-    margin-bottom:6px;
-    font-family:'IBM Plex Mono',monospace;
-  }
-  select, input[type=range]{width:100%;}
-  select{
-    padding:8px 10px;
-    border:1px solid var(--line);
-    background:#fff;
-    font-family:'IBM Plex Sans',sans-serif;
-    font-size:14px;
-    border-radius:2px;
-    color:var(--ink);
-  }
-  input[type=range]{accent-color:var(--red);}
-  .range-row{display:flex; align-items:center; gap:10px;}
-  .range-row .val{font-family:'IBM Plex Mono',monospace; font-size:12px; width:36px; text-align:right; color:var(--ink-soft);}
-
-  .swatches{display:flex; gap:8px; flex-wrap:wrap;}
-  .swatch{
-    width:30px; height:30px; border-radius:50%;
-    border:2px solid var(--line);
-    cursor:pointer;
-    position:relative;
-  }
-  .swatch.selected{border-color:var(--red); box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--red);}
-
-  button{
-    font-family:'Barlow Condensed',sans-serif;
-    text-transform:uppercase;
-    letter-spacing:.04em;
-    font-weight:600;
-    font-size:15px;
-    padding:11px 18px;
-    border:1px solid var(--ink);
-    background:var(--ink);
-    color:#fff;
-    border-radius:2px;
-    cursor:pointer;
-    transition:transform .1s ease, background .15s ease;
-  }
-  button:hover{background:#000;}
-  button:active{transform:scale(.98);}
-  button.secondary{background:transparent; color:var(--ink); border-color:var(--line);}
-  button.secondary:hover{background:var(--paper-alt);}
-  button.accent{background:var(--red); border-color:var(--red);}
-  button.accent:hover{background:#a52f2f;}
-  button:disabled{opacity:.4; cursor:not-allowed;}
-  .btn-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
-
-  /* ===== Upload ===== */
-  .dropzone{
-    border:2px dashed var(--line);
-    border-radius:4px;
-    padding:60px 20px;
-    text-align:center;
-    background:var(--card);
-    cursor:pointer;
-    transition:border-color .15s, background .15s;
-  }
-  .dropzone:hover, .dropzone.drag{border-color:var(--red); background:#FBF4F4;}
-  .dropzone .icon{font-size:36px; margin-bottom:10px;}
-  .dropzone h3{margin:0 0 6px; font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; font-size:22px;}
-  .dropzone p{color:var(--ink-soft); font-size:13.5px; margin:0;}
-  #fileInput{display:none;}
-
-  .formats-note{
-    margin-top:18px;
-    display:flex; gap:16px; flex-wrap:wrap;
-    font-size:12.5px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;
-  }
-  .formats-note span{border:1px solid var(--line); padding:4px 8px; border-radius:2px; background:var(--card);}
-
-  /* ===== Light table / canvas stage ===== */
-  .lighttable{
-    background:
-      linear-gradient(#DEDBD0 1px, transparent 1px),
-      linear-gradient(90deg, #DEDBD0 1px, transparent 1px),
-      #F6F4EE;
-    background-size:16px 16px;
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    min-height:460px;
-    padding:20px;
-    position:relative;
-  }
-  .stage-wrap{position:relative; box-shadow:0 8px 24px rgba(0,0,0,.15);}
-  .stage-wrap canvas{display:block; cursor:grab;}
-  .stage-wrap canvas:active{cursor:grabbing;}
-  #overlayCanvas{position:absolute; top:0; left:0; pointer-events:none;}
-
-  .hint{
-    font-size:12px; color:var(--ink-soft); margin-top:10px; text-align:center;
-    font-family:'IBM Plex Mono',monospace;
-  }
-
-  /* ===== Sheet stage ===== */
-  #sheetCanvas{max-width:100%; height:auto; background:#fff; box-shadow:0 8px 24px rgba(0,0,0,.15);}
-
-  .stat-row{display:flex; gap:18px; flex-wrap:wrap; margin-top:14px;}
-  .stat{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:12.5px;
-    color:var(--ink-soft);
-  }
-  .stat b{color:var(--ink); display:block; font-size:18px; font-family:'Barlow Condensed',sans-serif;}
-
-  footer{
-    max-width:640px; margin:0 auto; padding:0 20px 40px;
-    color:var(--ink-soft); font-size:12px; font-family:'IBM Plex Mono',monospace;
-  }
-  footer .rule{border-top:1px dashed var(--line); margin:24px 0 14px;}
-
-  .note-box{
-    background:var(--blue-soft);
-    border:1px solid #B9C7D3;
-    padding:10px 12px;
-    font-size:12.5px;
-    color:#2C4258;
-    border-radius:2px;
-    margin-top:10px;
-    line-height:1.5;
-  }
-
-  /* ===== Gallery (multi-upload) ===== */
-  .gallery{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(110px,1fr));
-    gap:12px;
-    margin-top:20px;
-  }
-  .gallery-item{
-    position:relative;
-    border:2px solid var(--line);
-    border-radius:3px;
-    overflow:hidden;
-    cursor:pointer;
-    background:#fff;
-    aspect-ratio:1/1;
-  }
-  .gallery-item:hover{border-color:var(--red);}
-  .gallery-item img{width:100%; height:100%; object-fit:cover; display:block;}
-  .gallery-item .pick{
-    position:absolute; bottom:0; left:0; right:0;
-    background:rgba(33,36,43,.82); color:#fff;
-    font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.04em;
-    font-size:12px; text-align:center; padding:5px 0;
-  }
-  .gallery-title{
-    font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft); margin-top:16px;
-  }
-
-  /* ===== Checklist ===== */
-  .checklist{
-    list-style:none; padding:0; margin:8px 0 0;
-    font-size:12.5px; color:var(--ink-soft); line-height:1.7;
-  }
-  .checklist li{padding-left:18px; position:relative;}
-  .checklist li::before{
-    content:'✓'; position:absolute; left:0; color:var(--red); font-weight:600;
-  }
-
-  /* ===== Small util buttons ===== */
-  .icon-btn{
-    background:transparent; border:1px solid var(--line); color:var(--ink-soft);
-    padding:8px 12px; font-size:12.5px; text-transform:none; letter-spacing:0; font-weight:500;
-    font-family:'IBM Plex Sans',sans-serif;
-  }
-  .icon-btn:hover{background:var(--paper-alt); color:var(--ink);}
+  #dropzone.dragover{ border-color:var(--studio); background:rgba(47,92,245,.06); }
+  .thumb{ position:relative; flex:0 0 auto; width:64px; }
+  .thumb img{ width:64px; height:64px; object-fit:cover; border-radius:10px; border:2px solid transparent; cursor:pointer; }
+  .thumb.active img{ border-color:var(--studio); }
+  .thumb .qty{ width:100%; text-align:center; font-size:11px; margin-top:2px; border:1px solid #e2e8f0; border-radius:6px; padding:1px 0; }
+  .thumb .x{ position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border-radius:99px; width:18px; height:18px; font-size:11px; line-height:18px; text-align:center; cursor:pointer; }
 </style>
 </head>
-<body>
+<body class="mesh min-h-screen text-slate-800">
 
-<header>
-  <div class="brand">
-    <h1>पासपोर्ट फोटो स्टूडियो</h1>
-    <span class="tag mono">STUDIO CUT · V1</span>
+<header class="sticky top-0 z-40 glass border-b">
+  <div class="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
+    <div class="flex items-center gap-2.5">
+      <div class="h-9 w-9 rounded-xl bg-[var(--studio)] text-white flex items-center justify-center font-bold">S</div>
+      <div class="leading-tight">
+        <p class="font-bold text-sm">Studio Passport</p>
+        <p class="text-[11px] text-slate-500 -mt-0.5">Photo Maker</p>
+      </div>
+      <span class="ml-2 hidden sm:inline text-[11px] bg-slate-100 rounded-full px-2 py-1 text-slate-500">Runs entirely in your browser</span>
+    </div>
   </div>
-  <p class="sub">फोटो अपलोड करें, स्टूडियो जैसा बैकग्राउंड और साइज़ सेट करें, फिर प्रिंट शीट पर कई कॉपियाँ अरेंज करके डाउनलोड करें।</p>
 </header>
 
-<main>
-  <div class="filmstrip">
-    <div class="frame active" data-step="1"><span class="num mono">01</span><span class="label">अपलोड</span></div>
-    <div class="frame disabled" data-step="2"><span class="num mono">02</span><span class="label">एडजस्ट</span></div>
-    <div class="frame disabled" data-step="3"><span class="num mono">03</span><span class="label">प्रिंट शीट</span></div>
-  </div>
+<main class="max-w-6xl mx-auto px-4 py-8">
 
-  <!-- STEP 1: UPLOAD -->
-  <section class="step active" id="step1">
-    <div class="dropzone" id="dropzone">
-      <div class="icon">📷</div>
-      <h3>फोटो यहाँ खींचें या क्लिक करें</h3>
-      <p>JPG / PNG · एक साथ कई फोटो चुन सकते हैं · सीधा चेहरा, प्लेन बैकग्राउंड वाली फोटो सबसे अच्छा रिज़ल्ट देती है</p>
-      <input type="file" id="fileInput" accept="image/*" multiple>
-    </div>
-    <div class="formats-note">
-      <span>India / US — 2×2 in (51×51mm)</span>
-      <span>UK / Schengen — 35×45mm</span>
-      <span>China Visa — 33×48mm</span>
-      <span>Canada — 50×70mm</span>
-    </div>
-    <div class="gallery-title" id="galleryTitle" style="display:none;">सबसे अच्छी फोटो चुनें →</div>
-    <div class="gallery" id="gallery"></div>
-  </section>
+  <!-- UPLOAD SCREEN -->
+  <section id="uploadScreen" class="max-w-xl mx-auto text-center space-y-6">
+    <h1 class="text-3xl font-extrabold tracking-tight">Passport photos, studio quality.</h1>
+    <p class="text-sm text-slate-500">Upload one or more photos — background removal, cropping, and print-ready sheets, all in one file, no install.</p>
 
-  <!-- STEP 2: ADJUST -->
-  <section class="step" id="step2">
-    <div class="grid2">
-      <div class="panel">
-        <h3>फोटो साइज़</h3>
-        <div class="field">
-          <label>FORMAT</label>
-          <select id="formatSelect">
-            <option value="51,51">India / US Passport & Visa — 2×2 in</option>
-            <option value="35,45">UK / Schengen / Europe — 35×45mm</option>
-            <option value="33,48">China Visa — 33×48mm</option>
-            <option value="50,70">Canada — 50×70mm</option>
-            <option value="35,45">Australia — 35×45mm</option>
-            <option value="custom">कस्टम साइज़ (mm)</option>
-          </select>
-        </div>
-        <div class="field" id="customSizeField" style="display:none;">
-          <label>कस्टम — चौड़ाई × ऊँचाई (mm)</label>
-          <div style="display:flex; gap:8px;">
-            <input type="number" id="customW" placeholder="35" style="width:50%; padding:8px; border:1px solid var(--line); border-radius:2px;">
-            <input type="number" id="customH" placeholder="45" style="width:50%; padding:8px; border:1px solid var(--line); border-radius:2px;">
-          </div>
-        </div>
-        <ul class="checklist" id="checklist"></ul>
-
-        <h3 style="margin-top:22px;">आउटपुट क्वालिटी</h3>
-        <div class="field">
-          <label>DPI / रेज़ोल्यूशन</label>
-          <select id="qualitySelect">
-            <option value="150">स्टैंडर्ड — 150 DPI (ऑनलाइन फॉर्म के लिए)</option>
-            <option value="300" selected>HD प्रिंट — 300 DPI (डिफ़ॉल्ट, सामान्य प्रिंट)</option>
-            <option value="600">फुल HD — 600 DPI (हाई-क्वालिटी प्रिंट)</option>
-            <option value="1200">4K UHD — 1200 DPI (प्रोफेशनल / बड़ा एनलार्जमेंट)</option>
-          </select>
-        </div>
-        <div class="quality-readout"><span>फाइनल साइज़</span><b id="qualityStat">—</b></div>
-
-        <h3 style="margin-top:22px;">ज़ूम / पोज़िशन / घुमाव</h3>
-        <div class="field">
-          <label>ज़ूम</label>
-          <div class="range-row">
-            <input type="range" id="zoomRange" min="50" max="300" value="100">
-            <span class="val mono" id="zoomVal">100%</span>
-          </div>
-        </div>
-        <div class="field">
-          <label>घुमाएं (टेढ़ा सिर ठीक करें)</label>
-          <div class="range-row">
-            <input type="range" id="rotateRange" min="-30" max="30" value="0">
-            <span class="val mono" id="rotateVal">0°</span>
-          </div>
-        </div>
-        <p class="hint" style="text-align:left;">फोटो को ड्रैग करके चेहरे को गाइडलाइन के बीच सेट करें · सपोर्टेड ब्राउज़र में फेस अपने-आप सेंटर हो जाता है</p>
-        <div class="btn-row">
-          <button class="icon-btn" id="resetBtn" type="button">↺ रीसेट</button>
-          <button class="icon-btn" id="beforeAfterBtn" type="button">👁 दबाकर देखें: पहले वाली</button>
-        </div>
-
-        <h3 style="margin-top:22px;">स्टूडियो टच-अप</h3>
-        <div class="field">
-          <label>ब्राइटनेस</label>
-          <div class="range-row"><input type="range" id="brightRange" min="70" max="140" value="100"><span class="val mono" id="brightVal">100%</span></div>
-        </div>
-        <div class="field">
-          <label>कॉन्ट्रास्ट</label>
-          <div class="range-row"><input type="range" id="contrastRange" min="70" max="140" value="100"><span class="val mono" id="contrastVal">100%</span></div>
-        </div>
-        <div class="btn-row">
-          <button class="secondary" id="autoEnhanceBtn" type="button">⚡ ऑटो एन्हांस</button>
-        </div>
-
-        <h3 style="margin-top:22px;">बैकग्राउंड बदलें</h3>
-        <div class="field">
-          <div class="swatches" id="bgSwatches">
-            <div class="swatch selected" data-color="none" style="background:repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0/8px 8px;" title="कोई बदलाव नहीं"></div>
-            <div class="swatch" data-color="#FFFFFF" style="background:#fff;" title="सफ़ेद"></div>
-            <div class="swatch" data-color="#3F7BC4" style="background:#3F7BC4;" title="हल्का नीला"></div>
-            <div class="swatch" data-color="#C23B3B" style="background:#C23B3B;" title="लाल"></div>
-            <div class="swatch" data-color="#B9BDC2" style="background:#B9BDC2;" title="ग्रे"></div>
-          </div>
-        </div>
-        <div class="field">
-          <label>टॉलरेंस (बैकग्राउंड कितना मैच करे)</label>
-          <div class="range-row"><input type="range" id="tolRange" min="10" max="100" value="40"><span class="val mono" id="tolVal">40</span></div>
-        </div>
-        <button class="accent" id="aiRemoveBtn" type="button" style="width:100%;">🤖 AI से बैकग्राउंड रिमूव</button>
-        <div class="btn-row">
-          <button class="secondary" id="applyBgBtn" type="button">मैनुअल कलर-मैच (ऑफलाइन)</button>
-        </div>
-        <div class="note-box">🤖 <b>AI रिमूव</b> पहली बार चलाने पर एक छोटा मॉडल (~1-3MB, Google MediaPipe) डाउनलोड करता है, इंटरनेट चाहिए, पर किसी भी बैकग्राउंड पर सटीक काम करता है। <b>मैनुअल कलर-मैच</b> पूरी तरह ऑफलाइन चलता है, पर सिर्फ़ प्लेन/एक-रंग बैकग्राउंड पर अच्छा रिज़ल्ट देता है। AI लगाने के बाद अगर ज़ूम/ब्राइटनेस/रोटेट बदला तो दोबारा "AI रिमूव" दबाना होगा।</div>
-
-        <h3 style="margin-top:22px;">🪄 एक-क्लिक स्टूडियो लुक</h3>
-        <p class="hint" style="text-align:left; margin-top:0;">किसी भी कैज़ुअल फोटो को एक क्लिक में AI बैकग्राउंड + ऑटो एन्हांस के साथ स्टूडियो लुक देगा</p>
-        <div class="field">
-          <label>बैकग्राउंड कलर</label>
-          <div class="swatches" id="magicSwatches">
-            <div class="swatch selected" data-color="#FFFFFF" style="background:#fff;" title="सफ़ेद"></div>
-            <div class="swatch" data-color="#3F7BC4" style="background:#3F7BC4;" title="हल्का नीला"></div>
-            <div class="swatch" data-color="#B9BDC2" style="background:#B9BDC2;" title="ग्रे"></div>
-          </div>
-        </div>
-        <button class="accent" id="magicBtn" type="button" style="width:100%;">🪄 ऑटो स्टूडियो लुक बनाएं</button>
-
-        <h3 style="margin-top:22px;">फोटो बॉर्डर</h3>
-        <div class="field">
-          <label>मोटाई</label>
-          <select id="borderWidthSelect">
-            <option value="0">बिना बॉर्डर</option>
-            <option value="0.6">पतला (0.6mm)</option>
-            <option value="1.2">मोटा (1.2mm)</option>
-          </select>
-        </div>
-        <div class="field" id="borderColorField" style="display:none;">
-          <label>बॉर्डर कलर</label>
-          <div class="swatches" id="borderSwatches">
-            <div class="swatch selected" data-color="#FFFFFF" style="background:#fff;" title="सफ़ेद"></div>
-            <div class="swatch" data-color="#21242B" style="background:#21242B;" title="काला"></div>
-            <div class="swatch" data-color="#8A8578" style="background:#8A8578;" title="ग्रे"></div>
-          </div>
-        </div>
-
-        <div class="btn-row" style="margin-top:20px;">
-          <button class="secondary" id="backTo1">← वापस</button>
-          <button class="accent" id="confirmCropBtn">फोटो कन्फर्म करें →</button>
-        </div>
-      </div>
-
+    <div id="dropzone" class="glass rounded-2xl border-2 border-dashed border-slate-300 p-10 flex flex-col items-center gap-4 transition-colors">
+      <div class="h-14 w-14 rounded-2xl bg-blue-100 text-[var(--studio)] flex items-center justify-center text-2xl">⬆</div>
       <div>
-        <div class="lighttable">
-          <div class="stage-wrap">
-            <canvas id="cropCanvas"></canvas>
-            <canvas id="overlayCanvas"></canvas>
-          </div>
-        </div>
-        <p class="hint">माउस से ड्रैग करके फोटो को फ्रेम में सेट करें</p>
+        <p class="font-semibold">Drag & drop your photos</p>
+        <p class="text-xs text-slate-500 mt-1">or choose below · JPG, PNG, WEBP · up to 20MB each · multiple files OK</p>
       </div>
+      <div class="flex gap-3">
+        <button onclick="fileInput.click()" class="bg-[var(--studio)] text-white text-sm font-medium px-4 py-2 rounded-xl">Browse files</button>
+        <button onclick="cameraInput.click()" class="border text-sm font-medium px-4 py-2 rounded-xl sm:hidden">Use camera</button>
+      </div>
+      <p id="uploadError" class="text-xs text-red-600 hidden"></p>
+      <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" />
+      <input id="cameraInput" type="file" accept="image/*" capture="user" class="hidden" />
     </div>
   </section>
 
-  <!-- STEP 3: SHEET -->
-  <section class="step" id="step3">
-    <div class="grid2">
-      <div class="panel">
-        <h3>प्रिंट शीट</h3>
-        <div class="field">
-          <label>शीट साइज़</label>
-          <select id="sheetSelect">
-            <option value="101.6,152.4">4 × 6 इंच फोटो पेपर</option>
-            <option value="127,178">5 × 7 इंच</option>
-            <option value="210,297">A4 शीट</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>फोटो प्रति रो (कॉलम)</label>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <button class="icon-btn" id="colDec" type="button" style="padding:8px 14px; font-size:16px;">−</button>
-            <span class="mono" id="colVal" style="font-size:16px; min-width:24px; text-align:center;">6</span>
-            <button class="icon-btn" id="colInc" type="button" style="padding:8px 14px; font-size:16px;">+</button>
-            <span class="hint" id="colMaxNote" style="margin:0; text-align:left;"></span>
+  <!-- WORKSPACE -->
+  <section id="workspace" class="hidden space-y-6">
+
+    <!-- THUMBNAIL STRIP -->
+    <div class="glass rounded-2xl p-3 flex items-center gap-3 overflow-x-auto">
+      <div id="thumbStrip" class="flex items-start gap-3"></div>
+      <button onclick="fileInput.click()" class="flex-0 h-16 w-16 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 text-xl flex items-center justify-center shrink-0">+</button>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button class="tab-btn active px-4 py-2 rounded-xl text-sm font-medium border" data-tab="editor">Editor</button>
+      <button class="tab-btn px-4 py-2 rounded-xl text-sm font-medium border" data-tab="print">Print sheet</button>
+      <button class="ml-auto text-xs text-slate-400 underline" onclick="resetApp()">Start over</button>
+    </div>
+
+    <!-- EDITOR TAB -->
+    <div id="tab-editor" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="space-y-4">
+        <div class="glass rounded-2xl p-4">
+          <p class="font-semibold text-sm mb-3">Preview <span id="activeName" class="text-slate-400 font-normal"></span></p>
+          <div class="relative aspect-[3/4] rounded-xl overflow-hidden border bg-slate-100">
+            <canvas id="previewCanvas" class="w-full h-full object-contain"></canvas>
+            <div id="busyOverlay" class="hidden absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2 text-white text-xs text-center px-4">
+              <div class="spinner"></div>
+              <p id="busyText">Processing…</p>
+            </div>
           </div>
+          <p id="bgStatusNote" class="text-[11px] mt-2 text-slate-500"></p>
         </div>
-        <div class="field">
-          <label>फोटो प्रति कॉलम (रो)</label>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <button class="icon-btn" id="rowDec" type="button" style="padding:8px 14px; font-size:16px;">−</button>
-            <span class="mono" id="rowVal" style="font-size:16px; min-width:24px; text-align:center;">6</span>
-            <button class="icon-btn" id="rowInc" type="button" style="padding:8px 14px; font-size:16px;">+</button>
-            <span class="hint" id="rowMaxNote" style="margin:0; text-align:left;"></span>
+        <div class="glass rounded-2xl p-4 space-y-2.5">
+          <p class="font-semibold text-sm">Download this photo</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-slate-500">Quality</label>
+              <select id="exportDpi" class="w-full border rounded-xl px-3 py-2 text-sm">
+                <option value="150">Draft · 150 DPI</option>
+                <option value="300" selected>Standard · 300 DPI</option>
+                <option value="600">High · 600 DPI</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500">JPEG quality</label>
+              <input id="jpegQuality" type="range" min="60" max="100" value="95" class="w-full">
+            </div>
           </div>
-        </div>
-        <div class="field">
-          <label>कितनी कॉपी चाहिए</label>
-          <div class="range-row">
-            <input type="range" id="copiesRange" min="1" max="40" value="8">
-            <span class="val mono" id="copiesVal">8</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="downloadPhoto('png')" class="glass border rounded-xl py-2 text-sm">PNG</button>
+            <button onclick="downloadPhoto('jpeg')" class="glass border rounded-xl py-2 text-sm">JPEG</button>
           </div>
-        </div>
-        <div class="field">
-          <label>शीट क्वालिटी / DPI</label>
-          <select id="sheetQualitySelect">
-            <option value="150">स्टैंडर्ड — 150 DPI</option>
-            <option value="300" selected>HD प्रिंट — 300 DPI (डिफ़ॉल्ट)</option>
-            <option value="600">फुल HD — 600 DPI (बड़ी फाइल, धीमा हो सकता है)</option>
-          </select>
-        </div>
-        <div class="quality-readout"><span>शीट रेज़ोल्यूशन</span><b id="sheetQualityStat">—</b></div>
-        <div class="stat-row">
-          <div class="stat"><b id="maxFit">—</b>शीट पर अधिकतम फिट</div>
-          <div class="stat"><b id="gridInfo">—</b>ग्रिड (कॉलम × रो)</div>
-        </div>
-        <div class="btn-row" style="margin-top:20px;">
-          <button class="secondary" id="backTo2">← वापस</button>
-        </div>
-        <div class="btn-row" style="margin-top:6px;">
-          <button class="accent" id="downloadSheetBtn">⬇ शीट PNG डाउनलोड करें</button>
-        </div>
-        <div class="btn-row">
-          <button class="secondary" id="downloadPdfBtn">⬇ शीट PDF डाउनलोड करें (प्रिंट शॉप के लिए)</button>
-        </div>
-        <div class="btn-row">
-          <button class="secondary" id="downloadSingleBtn">⬇ सिंगल फोटो डाउनलोड करें</button>
         </div>
       </div>
-      <div>
-        <div class="lighttable">
-          <canvas id="sheetCanvas"></canvas>
+
+      <div class="glass rounded-2xl p-4 space-y-5">
+        <div>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="removeBgBtn" onclick="handleRemoveBackground()" class="w-full bg-gradient-to-r from-[var(--studio)] to-blue-500 text-white text-sm font-semibold rounded-xl py-3">
+              ✨ AI background removal
+            </button>
+            <button id="quickBgBtn" onclick="handleQuickRemoveBackground()" class="w-full border text-sm font-semibold rounded-xl py-3">
+              ⚡ Quick removal (offline)
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1.5">AI mode downloads a small segmentation model (~15–40MB) and needs internet access. If your network blocks that, use Quick removal — it works fully offline and is best for plain, single-colour backgrounds.</p>
         </div>
-        <p class="hint">कट-मार्क (क्रॉसहेयर) हर फोटो के कोने पर दिखेंगे — कैंची से आसानी से काटें</p>
+
+        <div>
+          <p class="text-sm font-medium mb-2">Background</p>
+          <div class="flex flex-wrap gap-2" id="bgOptions">
+            <button data-bg="white" class="bg-choice flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-sm"><span class="h-3.5 w-3.5 rounded-full border" style="background:#fff"></span>White</button>
+            <button data-bg="blue" class="bg-choice flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-sm"><span class="h-3.5 w-3.5 rounded-full border" style="background:#4A90D9"></span>Blue</button>
+            <button data-bg="lightgray" class="bg-choice flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-sm"><span class="h-3.5 w-3.5 rounded-full border" style="background:#D9D9D9"></span>Light Gray</button>
+            <label class="flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-sm cursor-pointer">
+              <input id="customColor" type="color" value="#ffffff" class="h-3.5 w-3.5 border-0 p-0 bg-transparent" onchange="setBackground('custom', this.value)" />Custom
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-sm font-medium mb-2">Document type (applies to all photos)</p>
+          <select id="sizePreset" class="w-full border rounded-xl px-3 py-2 text-sm"></select>
+          <p id="sizeNote" class="text-[11px] text-slate-500 mt-1"></p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-xs text-slate-500">Zoom</label><input id="zoom" type="range" min="100" max="300" value="100" class="w-full"></div>
+          <div><label class="text-xs text-slate-500">Rotate</label><input id="rotate" type="range" min="-45" max="45" value="0" class="w-full"></div>
+          <div><label class="text-xs text-slate-500">Pan X</label><input id="panX" type="range" min="-50" max="50" value="0" class="w-full"></div>
+          <div><label class="text-xs text-slate-500">Pan Y</label><input id="panY" type="range" min="-50" max="50" value="0" class="w-full"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-xs text-slate-500">Brightness</label><input id="brightness" type="range" min="-100" max="100" value="0" class="w-full"></div>
+          <div><label class="text-xs text-slate-500">Contrast</label><input id="contrast" type="range" min="-100" max="100" value="0" class="w-full"></div>
+          <div><label class="text-xs text-slate-500">Saturation</label><input id="saturation" type="range" min="-100" max="100" value="0" class="w-full"></div>
+          <div><label class="text-xs text-slate-500">Sharpness</label><input id="sharpness" type="range" min="0" max="100" value="0" class="w-full"></div>
+        </div>
+        <button onclick="resetAdjustments()" class="text-xs text-slate-400 underline">Reset adjustments for this photo</button>
+      </div>
+    </div>
+
+    <!-- PRINT TAB -->
+    <div id="tab-print" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="glass rounded-2xl p-5 space-y-4">
+        <p class="font-semibold text-sm">Printing area</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-500">Photo size</label>
+            <select id="printSizePreset" class="w-full border rounded-xl px-3 py-2 text-sm"></select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Paper size</label>
+            <select id="paperPreset" class="w-full border rounded-xl px-3 py-2 text-sm"></select>
+          </div>
+          <div id="customPaperWrap" class="hidden">
+            <label class="text-xs text-slate-500">Custom width (mm)</label>
+            <input id="customPaperW" type="number" min="20" max="500" value="210" class="w-full border rounded-xl px-3 py-2 text-sm">
+          </div>
+          <div id="customPaperWrap2" class="hidden">
+            <label class="text-xs text-slate-500">Custom height (mm)</label>
+            <input id="customPaperH" type="number" min="20" max="500" value="297" class="w-full border rounded-xl px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Orientation</label>
+            <select id="orientation" class="w-full border rounded-xl px-3 py-2 text-sm">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Print quality</label>
+            <select id="dpi" class="w-full border rounded-xl px-3 py-2 text-sm">
+              <option value="150">Draft · 150 DPI</option>
+              <option value="300" selected>Standard · 300 DPI</option>
+              <option value="600">High · 600 DPI</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Spacing (mm)</label>
+            <input id="spacing" type="range" min="0" max="10" step="0.5" value="3" class="w-full">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Margin (mm)</label>
+            <input id="margin" type="range" min="0" max="20" step="0.5" value="5" class="w-full">
+          </div>
+        </div>
+
+        <div class="border-t pt-3">
+          <label class="flex items-center gap-2 text-sm mb-2"><input id="autoGrid" type="checkbox" checked>Auto-fit rows & columns to the page</label>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-slate-500">Columns (per row)</label>
+              <input id="columns" type="number" min="1" max="15" value="6" class="w-full border rounded-xl px-3 py-2 text-sm">
+            </div>
+            <div>
+              <label class="text-xs text-slate-500">Rows</label>
+              <input id="rowsInput" type="number" min="1" max="15" value="4" class="w-full border rounded-xl px-3 py-2 text-sm" disabled>
+            </div>
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-sm"><input id="cutBorders" type="checkbox" checked>Show cut borders</label>
+
+        <div class="border-t pt-3">
+          <button onclick="fillPageWithActivePhoto()" class="w-full bg-slate-800 text-white text-sm font-semibold rounded-xl py-2.5">📄 Fill whole sheet with this photo (like the MS Word trick)</button>
+          <p class="text-[11px] text-slate-500 mt-1.5">Same idea as pasting one passport photo into a Word table and copying it into every cell — this packs the page tight and repeats your currently selected photo as many times as will fit.</p>
+        </div>
+
+        <div id="photoQtyPanel" class="border-t pt-3 space-y-1">
+          <p class="text-xs text-slate-500 mb-1">Or set copies per uploaded photo manually (fills the sheet, cycling through if there's extra room):</p>
+          <div id="photoQtyList" class="space-y-1 text-sm"></div>
+        </div>
+
+        <div id="gridInfo" class="text-xs rounded-xl px-3 py-2 bg-emerald-50 text-emerald-700"></div>
+      </div>
+
+      <div class="glass rounded-2xl p-5 space-y-4">
+        <p class="font-semibold text-sm">Sheet preview</p>
+        <div class="mx-auto max-w-[260px]">
+          <div id="sheetPreview" class="relative w-full bg-white border rounded-lg overflow-hidden shadow"></div>
+        </div>
+        <div id="printBusy" class="hidden text-xs text-slate-500 flex items-center gap-1.5 justify-center"><div class="spinner" style="border-color:#94a3b8; border-top-color:#334155; width:14px; height:14px;"></div>Rendering…</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="downloadSheet('png')" class="glass border rounded-xl py-2 text-sm">PNG</button>
+          <button onclick="downloadSheet('jpeg')" class="glass border rounded-xl py-2 text-sm">JPEG</button>
+          <button onclick="downloadSheet('pdf')" class="bg-[var(--studio)] text-white rounded-xl py-2 text-sm">PDF</button>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
-<footer>
-  <div class="rule"></div>
-  पूरी प्रोसेस आपके ब्राउज़र में ही होती है — फोटो कहीं अपलोड नहीं होती। बैकग्राउंड रिमूव एक रंग-पहचान एल्गोरिद्म से होता है, बेहतरीन रिज़ल्ट के लिए सादे बैकग्राउंड वाली फोटो इस्तेमाल करें।
-</footer>
-
 <script>
-(function(){
-  const state = {
-    img:null, naturalW:0, naturalH:0,
-    fmtW:51, fmtH:51,
-    zoom:1, offX:0, offY:0, rotation:0,
-    dragging:false, lastX:0, lastY:0,
-    bright:100, contrast:100,
-    bgColor:null, tol:40,
-    finalCanvas:null,
-    dpiCrop:300, dpiSheet:300,
-    sheetMM:null, cols:6, rows:6,
-    borderWidth:0, borderColor:'#FFFFFF'
-  };
+/* ===================== Constants ===================== */
+const SIZES = [
+  { id:"india-passport", label:"India Passport", w:51, h:51, note:"2×2 in (51×51 mm), white background." },
+  { id:"india-visa", label:"India Visa", w:51, h:51, note:"Same format as passport photo." },
+  { id:"aadhaar", label:"Aadhaar", w:35, h:45, note:"35×45 mm, white background." },
+  { id:"pan", label:"PAN Card", w:25, h:35, note:"25×35 mm colour photo." },
+  { id:"driving-licence", label:"Driving Licence", w:35, h:45, note:"" },
+  { id:"us-visa", label:"US Visa / Passport", w:50.8, h:50.8, note:"2×2 in." },
+  { id:"schengen-visa", label:"Schengen Visa", w:35, h:45, note:"" },
+  { id:"custom", label:"Custom (35×45mm)", w:35, h:45, note:"Edit width/height in code if needed." },
+];
+const PAPERS = [
+  { id:"a4", label:"A4 (210×297mm)", w:210, h:297 },
+  { id:"a5", label:"A5 · narrow (148×210mm)", w:148, h:210 },
+  { id:"4x6", label:"4×6 in (101.6×152.4mm)", w:101.6, h:152.4 },
+  { id:"5x7", label:"5×7 in (127×178mm)", w:127, h:178 },
+  { id:"letter", label:"US Letter (215.9×279.4mm)", w:215.9, h:279.4 },
+  { id:"custom", label:"Custom size…", w:210, h:297 },
+];
+const BG_COLORS = { white:"#FFFFFF", blue:"#4A90D9", lightgray:"#D9D9D9" };
 
-  const CHECKLISTS = {
-    '51,51': ['सफ़ेद बैकग्राउंड ज़रूरी', 'आँखें पूरी खुली, सीधा देखें', 'चश्मा/टोपी हटाएं', 'न्यूट्रल एक्सप्रेशन', 'फोटो 6 महीने से पुरानी न हो'],
-    '35,45': ['हल्का ग्रे या सफ़ेद बैकग्राउंड', 'मुँह बंद, दोनों कान दिखने चाहिए', 'सिर सीधा, टेढ़ा न हो', 'शैडो/चमक फोटो पर न हो'],
-    '33,48': ['सफ़ेद बैकग्राउंड', 'सिर पर कोई गहना/टोपी नहीं (धार्मिक कारण छोड़कर)', 'दोनों कान साफ़ दिखें', 'बिना मुस्कान, न्यूट्रल चेहरा'],
-    '50,70': ['सफ़ेद या हल्का बैकग्राउंड', 'दोनों कंधे बराबर लेवल पर', 'आँखें कैमरे की तरफ', 'हाल की फोटो (6 महीने के अंदर)']
-  };
+/* ===================== State ===================== */
+// each photo: { id, name, originalImg, subjectImg, bgStatus:'none'|'busy'|'ai'|'quick'|'error',
+//               adjustments{...}, background{...}, printQty }
+let photos = [];
+let activeId = null;
+let sizePresetId = "aadhaar";
+let nextId = 1;
 
-  const $ = id => document.getElementById(id);
-  const cropCanvas = $('cropCanvas'), overlayCanvas = $('overlayCanvas');
-  const cctx = cropCanvas.getContext('2d'), octx = overlayCanvas.getContext('2d');
+function defaultAdjustments(){ return { brightness:0, contrast:0, saturation:0, sharpness:0, zoom:100, rotate:0, panX:0, panY:0 }; }
+function defaultBackground(){ return { type:"white", color:"#FFFFFF" }; }
+function activePhoto(){ return photos.find(p=>p.id===activeId); }
 
-  // ---------- Step nav ----------
-  const frames = document.querySelectorAll('.frame');
-  function goStep(n){
-    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
-    $('step'+n).classList.add('active');
-    frames.forEach(f=>{
-      const step = +f.dataset.step;
-      f.classList.toggle('active', step===n);
-      if(step<n) f.classList.add('done'); else if(step>n) f.classList.remove('done');
-    });
+/* ===================== DOM refs ===================== */
+const $ = (id) => document.getElementById(id);
+const uploadScreen = $("uploadScreen"), workspace = $("workspace");
+const previewCanvas = $("previewCanvas");
+
+/* ===================== Populate dropdowns ===================== */
+for (const sel of [$("sizePreset"), $("printSizePreset")]) {
+  sel.innerHTML = SIZES.map(s => `<option value="${s.id}">${s.label} (${s.w}×${s.h}mm)</option>`).join("");
+}
+$("sizePreset").value = sizePresetId;
+$("printSizePreset").value = sizePresetId;
+$("sizeNote").textContent = SIZES.find(s=>s.id===sizePresetId).note;
+$("paperPreset").innerHTML = PAPERS.map(p => `<option value="${p.id}">${p.label}</option>`).join("");
+$("paperPreset").value = "a4";
+
+/* ===================== Upload handling ===================== */
+const dropzone = $("dropzone"), fileInput = $("fileInput"), cameraInput = $("cameraInput"), uploadError = $("uploadError");
+const ACCEPTED = ["image/jpeg","image/jpg","image/png","image/webp"];
+const MAX_SIZE = 20*1024*1024;
+
+["dragover"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add("dragover"); }));
+["dragleave","drop"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove("dragover"); }));
+dropzone.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+fileInput.addEventListener("change", e => { handleFiles(e.target.files); e.target.value = ""; });
+cameraInput.addEventListener("change", e => { handleFiles(e.target.files); e.target.value = ""; });
+
+function handleFiles(fileList){
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  uploadError.classList.add("hidden");
+  const jobs = [];
+  for (const file of files){
+    if (!ACCEPTED.includes(file.type)) { showUploadError(`"${file.name}" isn't a JPG, PNG, or WEBP file.`); continue; }
+    if (file.size > MAX_SIZE) { showUploadError(`"${file.name}" is over the 20MB limit.`); continue; }
+    const url = URL.createObjectURL(file);
+    jobs.push(loadImage(url).then(img => ({ img, name: file.name })));
   }
-  frames.forEach(f=>{
-    f.addEventListener('click', ()=>{
-      if(f.classList.contains('disabled')) return;
-      goStep(+f.dataset.step);
-    });
-  });
-  function unlockStep(n){
-    const f = document.querySelector('.frame[data-step="'+n+'"]');
-    f.classList.remove('disabled');
-  }
-
-  // ---------- Upload (multi-file) ----------
-  const dropzone = $('dropzone'), fileInput = $('fileInput');
-  const gallery = $('gallery'), galleryTitle = $('galleryTitle');
-  dropzone.addEventListener('click', ()=>fileInput.click());
-  dropzone.addEventListener('dragover', e=>{e.preventDefault(); dropzone.classList.add('drag');});
-  dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
-  dropzone.addEventListener('drop', e=>{
-    e.preventDefault(); dropzone.classList.remove('drag');
-    if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-  });
-  fileInput.addEventListener('change', e=>{
-    if(e.target.files.length) handleFiles(e.target.files);
-  });
-
-  function handleFiles(fileList){
-    const files = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
-    if(!files.length) return alert('कृपया इमेज फ़ाइल चुनें');
-    if(files.length===1){
-      readAsDataURL(files[0]).then(useImageDataURL);
-      return;
-    }
-    // multiple files -> show gallery to pick the best one
-    gallery.innerHTML='';
-    galleryTitle.style.display='block';
-    Promise.all(files.map(readAsDataURL)).then(urls=>{
-      urls.forEach(url=>{
-        const item = document.createElement('div');
-        item.className='gallery-item';
-        item.innerHTML = `<img src="${url}"><div class="pick">इस्तेमाल करें</div>`;
-        item.addEventListener('click', ()=>useImageDataURL(url));
-        gallery.appendChild(item);
+  if (!jobs.length) return;
+  Promise.all(jobs).then(results => {
+    results.forEach(({img,name}) => {
+      const id = nextId++;
+      photos.push({
+        id, name,
+        originalImg: img,
+        subjectImg: img,
+        bgStatus: "none",
+        adjustments: defaultAdjustments(),
+        background: defaultBackground(),
+        printQty: 1,
       });
+      if (activeId === null) activeId = id;
     });
-  }
-
-  function readAsDataURL(file){
-    return new Promise((res,rej)=>{
-      const reader = new FileReader();
-      reader.onload = ev=>res(ev.target.result);
-      reader.onerror = rej;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function useImageDataURL(dataURL){
-    const img = new Image();
-    img.onload = ()=>{
-      state.img = img; state.naturalW = img.naturalWidth; state.naturalH = img.naturalHeight;
-      state.zoom=1; state.offX=0; state.offY=0; state.rotation=0; state.bgColor=null;
-      state.bright=100; state.contrast=100;
-      $('rotateRange').value=0; $('rotateVal').textContent='0°';
-      $('brightRange').value=100; $('brightVal').textContent='100%';
-      $('contrastRange').value=100; $('contrastVal').textContent='100%';
-      $('zoomRange').value=100; $('zoomVal').textContent='100%';
-      document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
-      document.querySelector('#bgSwatches .swatch[data-color="none"]').classList.add('selected');
-      unlockStep(2); goStep(2);
-      setupFormat(); initCropStage();
-      updateChecklist();
-      updateQualityStat();
-      tryFaceDetect(img);
-    };
-    img.src = dataURL;
-  }
-
-  function updateChecklist(){
-    const key = state.fmtW+','+state.fmtH;
-    const items = CHECKLISTS[key];
-    const ul = $('checklist');
-    ul.innerHTML='';
-    if(items){ items.forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); }); }
-  }
-
-  const qualitySelect = $('qualitySelect');
-  function updateQualityStat(){
-    state.dpiCrop = +qualitySelect.value;
-    const pxW = Math.round(state.fmtW/25.4*state.dpiCrop);
-    const pxH = Math.round(state.fmtH/25.4*state.dpiCrop);
-    $('qualityStat').textContent = pxW+' × '+pxH+' px';
-  }
-  qualitySelect.addEventListener('change', updateQualityStat);
-
-  // native face detection (progressive enhancement — only works in supporting browsers)
-  function tryFaceDetect(img){
-    if(typeof FaceDetector === 'undefined') return;
-    try{
-      const fd = new FaceDetector({maxDetectedFaces:1, fastMode:true});
-      fd.detect(img).then(faces=>{
-        if(faces && faces.length) autoCenterOnFace(faces[0].boundingBox);
-      }).catch(()=>{});
-    }catch(e){}
-  }
-
-  function autoCenterOnFace(box){
-    const {w,h} = frameSizePx();
-    const ovalH = h*0.62;
-    const desiredScale = ovalH / box.height;
-    let zoom = desiredScale / state.baseScale;
-    zoom = Math.max(0.5, Math.min(3, zoom));
-    state.zoom = zoom;
-    $('zoomRange').value = Math.round(zoom*100);
-    $('zoomVal').textContent = Math.round(zoom*100)+'%';
-    const scale = state.baseScale*zoom;
-    const dw = state.naturalW*scale, dh = state.naturalH*scale;
-    const fx = box.x + box.width/2, fy = box.y + box.height/2;
-    state.offX = (w/2) - ((w-dw)/2) - fx*scale;
-    state.offY = (h*0.46) - ((h-dh)/2) - fy*scale;
-    drawCrop();
-  }
-
-  // ---------- Format select ----------
-  const formatSelect = $('formatSelect'), customField = $('customSizeField');
-  formatSelect.addEventListener('change', ()=>{
-    if(formatSelect.value==='custom'){
-      customField.style.display='block';
-      $('checklist').innerHTML='';
-    } else {
-      customField.style.display='none';
-      const [w,h] = formatSelect.value.split(',').map(Number);
-      state.fmtW=w; state.fmtH=h;
-      initCropStage();
-      updateChecklist();
-      updateQualityStat();
-    }
+    uploadScreen.classList.add("hidden");
+    workspace.classList.remove("hidden");
+    renderThumbnails();
+    loadControlsFromActive();
+    renderPreview();
+    renderPhotoQtyList();
   });
-  $('customW').addEventListener('input', updateCustom);
-  $('customH').addEventListener('input', updateCustom);
-  function updateCustom(){
-    const w=parseFloat($('customW').value), h=parseFloat($('customH').value);
-    if(w>0 && h>0){ state.fmtW=w; state.fmtH=h; initCropStage(); updateQualityStat(); }
-  }
-  function setupFormat(){
-    const [w,h] = formatSelect.value.split(',').map(Number);
-    if(formatSelect.value!=='custom'){ state.fmtW=w; state.fmtH=h; }
-  }
+}
+function showUploadError(msg){ uploadError.textContent = msg; uploadError.classList.remove("hidden"); }
 
-  // ---------- Crop stage ----------
-  function frameSizePx(){
-    // preview frame box, fit within ~380px keeping min/max reasonable
-    const ratio = state.fmtH/state.fmtW;
-    let w = 340;
-    let h = w*ratio;
-    if(h>460){ h=460; w=h/ratio; }
-    if(h<180){ h=180; w=h/ratio; }
-    return {w:Math.round(w), h:Math.round(h)};
-  }
+function loadImage(src){
+  return new Promise((resolve,reject)=>{ const img = new Image(); img.crossOrigin="anonymous"; img.onload=()=>resolve(img); img.onerror=reject; img.src=src; });
+}
 
-  function initCropStage(){
-    if(!state.img) return;
-    const {w,h} = frameSizePx();
-    [cropCanvas, overlayCanvas].forEach(c=>{ c.width=w; c.height=h; });
-    // initial zoom so image covers frame
-    const coverScale = Math.max(w/state.naturalW, h/state.naturalH);
-    state.zoom = 1;
-    state.baseScale = coverScale;
-    state.offX = 0; state.offY = 0;
-    drawCrop(); drawOverlay();
-  }
+/* ===================== Thumbnails ===================== */
+function renderThumbnails(){
+  const strip = $("thumbStrip");
+  strip.innerHTML = photos.map(p => `
+    <div class="thumb ${p.id===activeId?'active':''}">
+      <div class="x" onclick="removePhoto(${p.id}, event)">×</div>
+      <img src="${p.originalImg.src}" onclick="selectPhoto(${p.id})" title="${p.name}">
+    </div>`).join("");
+}
+function selectPhoto(id){
+  activeId = id;
+  renderThumbnails();
+  loadControlsFromActive();
+  renderPreview();
+}
+function removePhoto(id, evt){
+  if (evt) evt.stopPropagation();
+  photos = photos.filter(p=>p.id!==id);
+  if (!photos.length){ resetApp(); return; }
+  if (activeId===id) activeId = photos[0].id;
+  renderThumbnails();
+  loadControlsFromActive();
+  renderPreview();
+  renderPhotoQtyList();
+}
+window.selectPhoto = selectPhoto;
+window.removePhoto = removePhoto;
 
-  function drawCrop(showOriginal){
-    const w=cropCanvas.width, h=cropCanvas.height;
-    cctx.clearRect(0,0,w,h);
-    cctx.save();
-    cctx.translate(w/2, h/2);
-    cctx.rotate((showOriginal?0:state.rotation) * Math.PI/180);
-    cctx.translate(-w/2, -h/2);
-    cctx.filter = showOriginal ? 'none' : `brightness(${state.bright}%) contrast(${state.contrast}%)`;
-    const scale = state.baseScale*state.zoom;
-    const dw = state.naturalW*scale, dh = state.naturalH*scale;
-    const dx = (w-dw)/2 + state.offX;
-    const dy = (h-dh)/2 + state.offY;
-    cctx.drawImage(state.img, dx, dy, dw, dh);
-    cctx.filter = 'none';
-    cctx.restore();
-    if(state.bgColor && !showOriginal){
-      applyBackgroundReplace();
-    }
-  }
+/* ===================== Tabs ===================== */
+document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  const tab = btn.dataset.tab;
+  $("tab-editor").classList.toggle("hidden", tab!=="editor");
+  $("tab-print").classList.toggle("hidden", tab!=="print");
+  if (tab==="print") { $("printSizePreset").value = sizePresetId; renderPhotoQtyList(); renderPrintPreview(); }
+}));
 
-  function drawOverlay(){
-    const w=overlayCanvas.width, h=overlayCanvas.height;
-    octx.clearRect(0,0,w,h);
-    octx.strokeStyle = 'rgba(194,59,59,0.55)';
-    octx.lineWidth = 1;
-    octx.setLineDash([4,3]);
-    // face oval guide
-    const ovalW = w*0.56, ovalH = h*0.62;
-    octx.beginPath();
-    octx.ellipse(w/2, h*0.46, ovalW/2, ovalH/2, 0, 0, Math.PI*2);
-    octx.stroke();
-    // eye line
-    octx.beginPath();
-    octx.moveTo(0, h*0.40); octx.lineTo(w, h*0.40);
-    octx.stroke();
-    // chin line
-    octx.beginPath();
-    octx.moveTo(0, h*0.78); octx.lineTo(w, h*0.78);
-    octx.stroke();
-    octx.setLineDash([]);
-    // corner registration marks
-    octx.strokeStyle = 'rgba(33,36,43,0.7)';
-    octx.lineWidth = 1.5;
-    const m=10;
-    [[m,m,1,1],[w-m,m,-1,1],[m,h-m,1,-1],[w-m,h-m,-1,-1]].forEach(([x,y,dx,dy])=>{
-      octx.beginPath();
-      octx.moveTo(x, y); octx.lineTo(x+dx*8, y);
-      octx.moveTo(x, y); octx.lineTo(x, y+dy*8);
-      octx.stroke();
-    });
-  }
+/* ===================== Background removal: AI (with CDN fallbacks) ===================== */
+const BG_MODEL_SOURCES = [
+  "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/dist/",
+  "https://unpkg.com/@imgly/background-removal@1.5.5/dist/",
+  "https://esm.sh/@imgly/background-removal@1.5.5/dist/",
+];
 
-  // drag to pan
-  cropCanvas.addEventListener('mousedown', e=>{
-    state.dragging=true; state.lastX=e.clientX; state.lastY=e.clientY;
-  });
-  window.addEventListener('mousemove', e=>{
-    if(!state.dragging) return;
-    state.offX += e.clientX-state.lastX;
-    state.offY += e.clientY-state.lastY;
-    state.lastX=e.clientX; state.lastY=e.clientY;
-    drawCrop();
-  });
-  window.addEventListener('mouseup', ()=>state.dragging=false);
-  // touch support
-  cropCanvas.addEventListener('touchstart', e=>{
-    const t=e.touches[0]; state.dragging=true; state.lastX=t.clientX; state.lastY=t.clientY;
-  });
-  cropCanvas.addEventListener('touchmove', e=>{
-    if(!state.dragging) return;
-    const t=e.touches[0];
-    state.offX += t.clientX-state.lastX;
-    state.offY += t.clientY-state.lastY;
-    state.lastX=t.clientX; state.lastY=t.clientY;
-    drawCrop(); e.preventDefault();
-  }, {passive:false});
-  cropCanvas.addEventListener('touchend', ()=>state.dragging=false);
-
-  $('zoomRange').addEventListener('input', e=>{
-    state.zoom = e.target.value/100;
-    $('zoomVal').textContent = e.target.value+'%';
-    drawCrop();
-  });
-  $('brightRange').addEventListener('input', e=>{
-    state.bright = +e.target.value; $('brightVal').textContent=e.target.value+'%'; drawCrop();
-  });
-  $('contrastRange').addEventListener('input', e=>{
-    state.contrast = +e.target.value; $('contrastVal').textContent=e.target.value+'%'; drawCrop();
-  });
-  $('tolRange').addEventListener('input', e=>{
-    state.tol = +e.target.value; $('tolVal').textContent = e.target.value;
-  });
-  $('rotateRange').addEventListener('input', e=>{
-    state.rotation = +e.target.value; $('rotateVal').textContent = e.target.value+'°';
-    drawCrop();
-  });
-
-  $('resetBtn').addEventListener('click', ()=>{
-    state.zoom=1; state.offX=0; state.offY=0; state.rotation=0;
-    state.bright=100; state.contrast=100; state.bgColor=null;
-    $('zoomRange').value=100; $('zoomVal').textContent='100%';
-    $('rotateRange').value=0; $('rotateVal').textContent='0°';
-    $('brightRange').value=100; $('brightVal').textContent='100%';
-    $('contrastRange').value=100; $('contrastVal').textContent='100%';
-    document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
-    document.querySelector('#bgSwatches .swatch[data-color="none"]').classList.add('selected');
-    initCropStage();
-  });
-
-  const beforeAfterBtn = $('beforeAfterBtn');
-  const showOriginalPreview = ()=>drawCrop(true);
-  const showEditedPreview = ()=>drawCrop(false);
-  beforeAfterBtn.addEventListener('mousedown', showOriginalPreview);
-  beforeAfterBtn.addEventListener('touchstart', e=>{showOriginalPreview(); e.preventDefault();}, {passive:false});
-  ['mouseup','mouseleave'].forEach(ev=>beforeAfterBtn.addEventListener(ev, showEditedPreview));
-  beforeAfterBtn.addEventListener('touchend', showEditedPreview);
-
-  function autoEnhance(){
-    // histogram auto-contrast on current frame pixels
-    const w=cropCanvas.width, h=cropCanvas.height;
-    const data = cctx.getImageData(0,0,w,h);
-    let min=255,max=0;
-    for(let i=0;i<data.data.length;i+=4){
-      const lum = 0.299*data.data[i]+0.587*data.data[i+1]+0.114*data.data[i+2];
-      if(lum<min) min=lum; if(lum>max) max=lum;
-    }
-    const range = Math.max(max-min, 1);
-    const contrastBoost = Math.min(140, Math.round(100*(255/range)*0.6+40));
-    state.bright = 104; state.contrast = contrastBoost;
-    $('brightRange').value=104; $('brightVal').textContent='104%';
-    $('contrastRange').value=contrastBoost; $('contrastVal').textContent=contrastBoost+'%';
-    drawCrop();
-  }
-  $('autoEnhanceBtn').addEventListener('click', autoEnhance);
-
-  // ---------- Magic one-click studio look ----------
-  state.magicBg = '#FFFFFF';
-  document.querySelectorAll('#magicSwatches .swatch').forEach(sw=>{
-    sw.addEventListener('click', ()=>{
-      document.querySelectorAll('#magicSwatches .swatch').forEach(s=>s.classList.remove('selected'));
-      sw.classList.add('selected');
-      state.magicBg = sw.dataset.color;
-    });
-  });
-  $('magicBtn').addEventListener('click', async ()=>{
-    const btn = $('magicBtn');
-    const orig = btn.textContent;
-    btn.disabled = true;
-    try{
-      tryFaceDetect(state.img);
-      await new Promise(r=>setTimeout(r,60));
-      autoEnhance();
-      state.pendingBg = state.magicBg;
-      document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
-      const match = document.querySelector('#bgSwatches .swatch[data-color="'+state.magicBg+'"]');
-      if(match) match.classList.add('selected');
-      await aiRemoveBackground();
-    } finally {
-      btn.disabled = false; btn.textContent = orig;
-    }
-  });
-
-  const borderWidthSelect = $('borderWidthSelect'), borderColorField = $('borderColorField');
-  borderWidthSelect.addEventListener('change', ()=>{
-    state.borderWidth = +borderWidthSelect.value;
-    borderColorField.style.display = state.borderWidth>0 ? 'block' : 'none';
-  });
-  document.querySelectorAll('#borderSwatches .swatch').forEach(sw=>{
-    sw.addEventListener('click', ()=>{
-      document.querySelectorAll('#borderSwatches .swatch').forEach(s=>s.classList.remove('selected'));
-      sw.classList.add('selected');
-      state.borderColor = sw.dataset.color;
-    });
-  });
-  document.querySelectorAll('#bgSwatches .swatch').forEach(sw=>{
-    sw.addEventListener('click', ()=>{
-      document.querySelectorAll('#bgSwatches .swatch').forEach(s=>s.classList.remove('selected'));
-      sw.classList.add('selected');
-      state.pendingBg = sw.dataset.color==='none' ? null : sw.dataset.color;
-    });
-  });
-  $('applyBgBtn').addEventListener('click', ()=>{
-    state.bgColor = state.pendingBg || null;
-    drawCrop();
-  });
-
-  const aiBtn = $('aiRemoveBtn');
-  aiBtn.addEventListener('click', aiRemoveBackground);
-
-  async function aiRemoveBackground(){
-    if(!state.pendingBg){ alert('पहले ऊपर से एक बैकग्राउंड कलर चुनें (सफ़ेद/नीला/लाल/ग्रे)'); return; }
-    const origText = aiBtn.textContent;
-    aiBtn.disabled = true;
-    aiBtn.classList.add('loading');
-    const setLabel = (t)=>{ aiBtn.innerHTML = '<span class="spinner"></span>'+t; };
-    try{
-      if(typeof SelfieSegmentation === 'undefined'){
-        throw new Error('lib-not-loaded');
-      }
-      setLabel('मॉडल लोड हो रहा है...');
-      if(!window._selfieSeg){
-        window._selfieSeg = new SelfieSegmentation({
-          locateFile: (file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+async function handleRemoveBackground(){
+  const p = activePhoto();
+  if (!p) return;
+  setBusy(true, "Contacting AI model server…");
+  p.bgStatus = "busy";
+  let lastErr = null;
+  try {
+    const { removeBackground } = await import("https://esm.sh/@imgly/background-removal@1.5.5");
+    let blob = null;
+    for (const base of BG_MODEL_SOURCES){
+      try {
+        setBusy(true, "Downloading AI model…");
+        blob = await removeBackground(p.originalImg.src, {
+          model: "isnet",
+          output: { format: "image/png", quality: 1 },
+          publicPath: base,
         });
-        window._selfieSeg.setOptions({modelSelection:1});
+        if (blob) break;
+      } catch (err) {
+        lastErr = err;
+        continue; // try next CDN
       }
-      setLabel('फोटो एनालाइज़ हो रही है...');
-      // clean base render (filters + rotation applied, no colour tint) before segmenting
-      state.bgColor = null;
-      drawCrop(false);
-      const w = cropCanvas.width, h = cropCanvas.height;
+    }
+    if (!blob) throw lastErr || new Error("All model sources failed");
+    const url = URL.createObjectURL(blob);
+    p.subjectImg = await loadImage(url);
+    p.bgStatus = "ai";
+    renderThumbnails();
+    renderPreview();
+  } catch (err) {
+    console.error(err);
+    p.bgStatus = "error";
+    setBusy(true, "AI model unreachable — using offline quick removal instead…");
+    try {
+      await runQuickRemoval(p);
+      p.bgStatus = "quick";
+      renderPreview();
+    } catch (e2) {
+      console.error(e2);
+      updateBgStatusNote("Background removal failed. Your original photo is unaffected — check your internet connection, or try Quick removal.");
+    }
+  } finally {
+    setBusy(false);
+    updateBgStatusNote();
+  }
+}
 
-      let maskResult = null;
-      window._selfieSeg.onResults((res)=>{ maskResult = res.segmentationMask; });
-      const sendPromise = window._selfieSeg.send({image: cropCanvas});
-      const timeoutPromise = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 20000));
-      await Promise.race([sendPromise, timeoutPromise]);
-      if(!maskResult) throw new Error('no-mask-result');
+/* ===================== Background removal: Quick (offline, no network) ===================== */
+async function handleQuickRemoveBackground(){
+  const p = activePhoto();
+  if (!p) return;
+  setBusy(true, "Removing background (offline)…");
+  try {
+    await runQuickRemoval(p);
+    p.bgStatus = "quick";
+    renderPreview();
+  } catch (err) {
+    console.error(err);
+    p.bgStatus = "error";
+    updateBgStatusNote("Quick removal failed on this image.");
+  } finally {
+    setBusy(false);
+    updateBgStatusNote();
+  }
+}
 
-      const mtemp = document.createElement('canvas');
-      mtemp.width=w; mtemp.height=h;
-      const mctx = mtemp.getContext('2d');
-      mctx.drawImage(maskResult, 0, 0, w, h);
-      const maskPixels = mctx.getImageData(0,0,w,h).data;
-      const mask = new Float32Array(w*h);
-      for(let i=0;i<w*h;i++){
-        const prob = maskPixels[i*4]/255; // foreground (person) probability
-        mask[i] = 1 - prob; // background weight
-      }
-      const soft = boxBlurMask(mask, w, h, 1);
-      const imgData = cctx.getImageData(0,0,w,h);
+function runQuickRemoval(p){
+  return new Promise((resolve, reject) => {
+    try {
+      const img = p.originalImg;
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, w, h);
       const d = imgData.data;
-      const target = hexToRgb(state.pendingBg);
-      for(let idx=0; idx<w*h; idx++){
-        const a = soft[idx];
-        if(a<=0.02) continue;
-        const i=idx*4;
-        d[i]   = d[i]*(1-a)   + target[0]*a;
-        d[i+1] = d[i+1]*(1-a) + target[1]*a;
-        d[i+2] = d[i+2]*(1-a) + target[2]*a;
+      const idx = (x,y) => (y*w+x)*4;
+      // sample likely background colour from border/corner pixels
+      const samples = [[0,0],[w-1,0],[0,h-1],[w-1,h-1],[Math.floor(w/2),0],[0,Math.floor(h/2)],[w-1,Math.floor(h/2)]];
+      let sr=0, sg=0, sb=0;
+      samples.forEach(([x,y]) => { const i = idx(x,y); sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; });
+      sr/=samples.length; sg/=samples.length; sb/=samples.length;
+      const threshold = 42;
+      const total = w*h;
+      const visited = new Uint8Array(total);
+      const isBg = new Uint8Array(total);
+      const stack = [];
+      for (let x=0;x<w;x++){ stack.push(x); stack.push((h-1)*w+x); }
+      for (let y=0;y<h;y++){ stack.push(y*w); stack.push(y*w + (w-1)); }
+      function dist(i){ const dr=d[i]-sr, dg=d[i+1]-sg, db=d[i+2]-sb; return Math.sqrt(dr*dr+dg*dg+db*db); }
+      while (stack.length){
+        const p0 = stack.pop();
+        if (p0 < 0 || p0 >= total || visited[p0]) continue;
+        visited[p0] = 1;
+        const i = p0*4;
+        if (dist(i) > threshold) continue;
+        isBg[p0] = 1;
+        const x = p0 % w, y = (p0 - x) / w;
+        if (x>0) stack.push(p0-1);
+        if (x<w-1) stack.push(p0+1);
+        if (y>0) stack.push(p0-w);
+        if (y<h-1) stack.push(p0+w);
       }
-      cctx.putImageData(imgData,0,0);
-    }catch(err){
-      console.error(err);
-      alert('AI मॉडल लोड नहीं हो पाया (इंटरनेट चेक करें) — इसकी जगह नीचे "मैनुअल कलर-मैच" इस्तेमाल करें।');
-    }finally{
-      aiBtn.disabled = false; aiBtn.classList.remove('loading'); aiBtn.textContent = origText;
-    }
-  }
-
-  function hexToRgb(hex){
-    const v = parseInt(hex.slice(1),16);
-    return [(v>>16)&255,(v>>8)&255,v&255];
-  }
-
-  function boxBlurMask(mask, w, h, radius){
-    // separable box blur on a Float32Array mask, a few passes ≈ gaussian
-    const tmp = new Float32Array(w*h);
-    const out = new Float32Array(w*h);
-    // horizontal
-    for(let y=0;y<h;y++){
-      let sum=0, count=0;
-      for(let x=-radius;x<=radius;x++){
-        const xi=Math.min(w-1,Math.max(0,x));
-        sum += mask[y*w+xi]; count++;
+      for (let px=0; px<total; px++){
+        if (isBg[px]) d[px*4+3] = 0;
       }
-      for(let x=0;x<w;x++){
-        tmp[y*w+x] = sum/count;
-        const xOut=Math.min(w-1,x-radius), xIn=Math.min(w-1,x+radius+1);
-        sum += mask[y*w+xIn] - mask[y*w+Math.max(0,xOut)];
-      }
-    }
-    // vertical
-    for(let x=0;x<w;x++){
-      let sum=0, count=0;
-      for(let y=-radius;y<=radius;y++){
-        const yi=Math.min(h-1,Math.max(0,y));
-        sum += tmp[yi*w+x]; count++;
-      }
-      for(let y=0;y<h;y++){
-        out[y*w+x] = sum/count;
-        const yOut=Math.min(h-1,y-radius), yIn=Math.min(h-1,y+radius+1);
-        sum += tmp[yIn*w+x] - tmp[Math.max(0,yOut)*w+x];
-      }
-    }
-    return out;
-  }
-
-  function applyBackgroundReplace(){
-    const w=cropCanvas.width, h=cropCanvas.height;
-    const imgData = cctx.getImageData(0,0,w,h);
-    const d = imgData.data;
-    const target = hexToRgb(state.bgColor);
-    const tol = state.tol*2.2;
-    // sample corner + edge colors as reference "background" colors
-    const samples = [];
-    const sampleAt = (x,y)=>{ const i=(y*w+x)*4; samples.push([d[i],d[i+1],d[i+2]]); };
-    const m=4;
-    sampleAt(m,m); sampleAt(w-m,m); sampleAt(m,h-m); sampleAt(w-m,h-m);
-    sampleAt(Math.floor(w/2),m); sampleAt(m,Math.floor(h/2)); sampleAt(w-m,Math.floor(h/2));
-
-    const visited = new Uint8Array(w*h);
-    const mask = new Float32Array(w*h); // 1 = background, 0 = subject
-    const stack = [];
-    const pushIfEdge = (x,y)=>{ if(x>=0&&x<w&&y>=0&&y<h) stack.push([x,y]); };
-    for(let x=0;x<w;x++){ pushIfEdge(x,0); pushIfEdge(x,h-1); }
-    for(let y=0;y<h;y++){ pushIfEdge(0,y); pushIfEdge(w-1,y); }
-
-    function closeToAnySample(r,g,b){
-      for(const s of samples){
-        const dist = Math.sqrt((r-s[0])**2+(g-s[1])**2+(b-s[2])**2);
-        if(dist<tol) return true;
-      }
-      return false;
-    }
-
-    while(stack.length){
-      const [x,y] = stack.pop();
-      const idx = y*w+x;
-      if(visited[idx]) continue;
-      visited[idx]=1;
-      const i=idx*4;
-      if(!closeToAnySample(d[i],d[i+1],d[i+2])) continue;
-      mask[idx]=1;
-      if(x>0) stack.push([x-1,y]);
-      if(x<w-1) stack.push([x+1,y]);
-      if(y>0) stack.push([x,y-1]);
-      if(y<h-1) stack.push([x,y+1]);
-    }
-
-    // feather the mask edges so the cut isn't hard/jagged
-    const soft = boxBlurMask(mask, w, h, 2);
-
-    for(let idx=0; idx<w*h; idx++){
-      const a = soft[idx];
-      if(a<=0.02) continue;
-      const i=idx*4;
-      d[i]   = d[i]*(1-a)   + target[0]*a;
-      d[i+1] = d[i+1]*(1-a) + target[1]*a;
-      d[i+2] = d[i+2]*(1-a) + target[2]*a;
-    }
-    cctx.putImageData(imgData,0,0);
-  }
-
-  // ---------- confirm crop -> build final photo ----------
-  $('confirmCropBtn').addEventListener('click', ()=>{
-    const pxW = Math.round(state.fmtW/25.4*state.dpiCrop);
-    const pxH = Math.round(state.fmtH/25.4*state.dpiCrop);
-    const out = document.createElement('canvas');
-    out.width=pxW; out.height=pxH;
-    const octx2 = out.getContext('2d');
-    octx2.drawImage(cropCanvas, 0,0,cropCanvas.width,cropCanvas.height, 0,0,pxW,pxH);
-    if(state.borderWidth>0){
-      const bw = Math.round(state.borderWidth/25.4*state.dpiCrop);
-      octx2.strokeStyle = state.borderColor;
-      octx2.lineWidth = bw;
-      octx2.strokeRect(bw/2, bw/2, pxW-bw, pxH-bw);
-    }
-    state.finalCanvas = out;
-    unlockStep(3); goStep(3);
-    fillGridAndRender();
+      ctx.putImageData(imgData, 0, 0);
+      loadImage(c.toDataURL("image/png")).then(img2 => { p.subjectImg = img2; resolve(); }).catch(reject);
+    } catch (err) { reject(err); }
   });
-  $('backTo1').addEventListener('click', ()=>goStep(1));
-  $('backTo2').addEventListener('click', ()=>goStep(2));
+}
 
-  // ---------- Step 3: sheet ----------
-  const sheetSelect = $('sheetSelect'), copiesRange=$('copiesRange'), sheetQualitySelect=$('sheetQualitySelect');
-  sheetSelect.addEventListener('change', ()=>{ fillGridAndRender(); });
-  sheetQualitySelect.addEventListener('change', ()=>{
-    state.dpiSheet = +sheetQualitySelect.value;
-    updateSheetInfo(); renderSheet();
+function updateBgStatusNote(customMsg){
+  const p = activePhoto();
+  const note = $("bgStatusNote");
+  if (customMsg){ note.textContent = customMsg; note.className = "text-[11px] mt-2 text-red-600"; return; }
+  if (!p){ note.textContent = ""; return; }
+  const map = {
+    none: "",
+    busy: "Processing…",
+    ai: "Background removed with AI segmentation.",
+    quick: "Background removed with offline quick removal — works best on plain backgrounds; if edges look rough, try cropping tighter or use AI removal when you have internet.",
+    error: "Background removal failed. Your original photo is unaffected.",
+  };
+  note.textContent = map[p.bgStatus] || "";
+  note.className = "text-[11px] mt-2 " + (p.bgStatus==="error" ? "text-red-600" : "text-slate-500");
+}
+
+function setBusy(on, text){
+  $("busyOverlay").classList.toggle("hidden", !on);
+  if (text) $("busyText").textContent = text;
+}
+window.handleRemoveBackground = handleRemoveBackground;
+window.handleQuickRemoveBackground = handleQuickRemoveBackground;
+
+/* ===================== Background selection (per active photo) ===================== */
+document.querySelectorAll(".bg-choice").forEach(btn=>{
+  btn.addEventListener("click", ()=> setBackground(btn.dataset.bg));
+});
+function setBackground(type, color){
+  const p = activePhoto();
+  if (!p) return;
+  p.background = { type, color: type==="custom" ? color : (BG_COLORS[type]||"#FFFFFF") };
+  document.querySelectorAll(".bg-choice").forEach(b=>b.classList.toggle("ring-2", b.dataset.bg===type));
+  renderPreview();
+}
+window.setBackground = setBackground;
+
+/* ===================== Controls wiring (operate on active photo) ===================== */
+["brightness","contrast","saturation","sharpness","zoom","rotate","panX","panY"].forEach(id=>{
+  $(id).addEventListener("input", e=>{
+    const p = activePhoto();
+    if (!p) return;
+    p.adjustments[id] = Number(e.target.value);
+    renderPreview();
   });
-  copiesRange.addEventListener('input', ()=>{
-    $('copiesVal').textContent = copiesRange.value;
-    renderSheet();
+});
+$("sizePreset").addEventListener("change", e=>{
+  sizePresetId = e.target.value;
+  $("sizeNote").textContent = SIZES.find(s=>s.id===sizePresetId).note;
+  renderPreview();
+});
+function resetAdjustments(){
+  const p = activePhoto();
+  if (!p) return;
+  p.adjustments = defaultAdjustments();
+  loadControlsFromActive();
+  renderPreview();
+}
+window.resetAdjustments = resetAdjustments;
+window.resetApp = () => location.reload();
+
+function loadControlsFromActive(){
+  const p = activePhoto();
+  $("activeName").textContent = p ? `· ${p.name}` : "";
+  if (!p) return;
+  const a = p.adjustments;
+  ["brightness","contrast","saturation","sharpness"].forEach(id=>$(id).value = a[id]);
+  $("zoom").value = a.zoom; $("rotate").value = a.rotate; $("panX").value = a.panX; $("panY").value = a.panY;
+  document.querySelectorAll(".bg-choice").forEach(b=>b.classList.toggle("ring-2", b.dataset.bg===p.background.type));
+  if (p.background.type==="custom") $("customColor").value = p.background.color;
+  updateBgStatusNote();
+}
+
+/* ===================== Core rendering (composite + crop + adjustments) ===================== */
+function clamp(v,min=0,max=255){ return Math.min(max, Math.max(min, v)); }
+
+function applyPixelAdjustments(ctx, w, h, adjustments){
+  const { brightness, contrast, saturation } = adjustments;
+  if (!brightness && !contrast && !saturation) return;
+  const imgData = ctx.getImageData(0,0,w,h);
+  const d = imgData.data;
+  const contrastFactor = (259*(contrast+255))/(255*(259-contrast));
+  const satFactor = 1 + saturation/100;
+  for (let i=0;i<d.length;i+=4){
+    let r=d[i], g=d[i+1], b=d[i+2];
+    r += brightness*1.4; g += brightness*1.4; b += brightness*1.4;
+    r = contrastFactor*(r-128)+128; g = contrastFactor*(g-128)+128; b = contrastFactor*(b-128)+128;
+    const gray = 0.299*r+0.587*g+0.114*b;
+    r = gray+(r-gray)*satFactor; g = gray+(g-gray)*satFactor; b = gray+(b-gray)*satFactor;
+    d[i]=clamp(r); d[i+1]=clamp(g); d[i+2]=clamp(b);
+  }
+  ctx.putImageData(imgData,0,0);
+}
+function applySharpen(ctx, w, h, amount){
+  if (amount<=0) return;
+  const strength = amount/100;
+  const src = ctx.getImageData(0,0,w,h);
+  const dst = ctx.createImageData(w,h);
+  const s = src.data, d = dst.data;
+  const kernel = [0,-1,0,-1,5,-1,0,-1,0];
+  for (let y=0;y<h;y++){
+    for (let x=0;x<w;x++){
+      const idx=(y*w+x)*4;
+      if (x===0||y===0||x===w-1||y===h-1){ d[idx]=s[idx];d[idx+1]=s[idx+1];d[idx+2]=s[idx+2];d[idx+3]=s[idx+3]; continue; }
+      for (let c=0;c<3;c++){
+        let sum=0,k=0;
+        for (let ky=-1;ky<=1;ky++) for (let kx=-1;kx<=1;kx++){ sum += s[((y+ky)*w+(x+kx))*4+c]*kernel[k++]; }
+        const orig = s[idx+c];
+        d[idx+c] = clamp(orig + (sum-orig)*strength);
+      }
+      d[idx+3]=s[idx+3];
+    }
+  }
+  ctx.putImageData(dst,0,0);
+}
+
+/** Composites a given photo's subject onto its background, crops/zooms/rotates into a canvas at outW×outH px. */
+function renderPhotoToCanvas(photo, canvas, outW, outH){
+  const { subjectImg, background, adjustments } = photo;
+  const ctx = canvas.getContext("2d");
+  canvas.width = outW; canvas.height = outH;
+  ctx.fillStyle = background.color;
+  ctx.fillRect(0,0,outW,outH);
+  const off = document.createElement("canvas");
+  off.width = subjectImg.naturalWidth; off.height = subjectImg.naturalHeight;
+  const octx = off.getContext("2d");
+  octx.fillStyle = background.color;
+  octx.fillRect(0,0,off.width,off.height);
+  octx.drawImage(subjectImg,0,0);
+  const zoom = adjustments.zoom/100;
+  const cw = off.width/zoom, ch = off.height/zoom;
+  const cx = off.width/2 + (adjustments.panX/100)*off.width;
+  const cy = off.height/2 + (adjustments.panY/100)*off.height;
+  ctx.save();
+  ctx.translate(outW/2, outH/2);
+  ctx.rotate(adjustments.rotate*Math.PI/180);
+  ctx.drawImage(off, cx-cw/2, cy-ch/2, cw, ch, -outW/2, -outH/2, outW, outH);
+  ctx.restore();
+  applyPixelAdjustments(ctx, outW, outH, adjustments);
+  applySharpen(ctx, outW, outH, adjustments.sharpness);
+}
+
+function mmToPx(mm, dpi){ return Math.round((mm/25.4)*dpi); }
+
+function renderPreview(){
+  const p = activePhoto();
+  if (!p) return;
+  const preset = SIZES.find(s=>s.id===sizePresetId);
+  const outW = 400, outH = Math.round(400*(preset.h/preset.w));
+  renderPhotoToCanvas(p, previewCanvas, outW, outH);
+  if (!$("tab-print").classList.contains("hidden")) renderPrintPreview();
+}
+
+/* ===================== Downloads (single photo) ===================== */
+function downloadPhoto(format){
+  const p = activePhoto();
+  if (!p) return;
+  const preset = SIZES.find(s=>s.id===sizePresetId);
+  const dpi = Number($("exportDpi").value);
+  const quality = Number($("jpegQuality").value)/100;
+  const canvas = document.createElement("canvas");
+  renderPhotoToCanvas(p, canvas, mmToPx(preset.w,dpi), mmToPx(preset.h,dpi));
+  const mime = format==="jpeg" ? "image/jpeg" : "image/png";
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL(mime, format==="jpeg" ? quality : 1.0);
+  a.download = `passport-photo-${preset.id}-${dpi}dpi.${format==="jpeg"?"jpg":"png"}`;
+  a.click();
+}
+window.downloadPhoto = downloadPhoto;
+
+/* ===================== Fill whole sheet with the active photo (MS-Word table trick) ===================== */
+function fillPageWithActivePhoto(){
+  const p = activePhoto();
+  if (!p) return;
+  const s = currentPrintSettings();
+  const grid = calculateGrid({
+    photoW: s.preset.w, photoH: s.preset.h,
+    targetColumns: s.columns, targetRows: s.rows, autoRows: s.autoRows,
+    marginMm: s.margin, spacingMm: s.spacing, pageW: s.pageW, pageH: s.pageH,
   });
+  photos.forEach(photo => { photo.printQty = (photo.id === p.id) ? grid.total : 0; });
+  renderPhotoQtyList();
+  renderPrintPreview();
+}
+window.fillPageWithActivePhoto = fillPageWithActivePhoto;
 
-  function getSheetMM(){
-    return sheetSelect.value.split(',').map(Number);
+/* ===================== Print quantity list ===================== */
+function renderPhotoQtyList(){
+  const wrap = $("photoQtyList");
+  wrap.innerHTML = photos.map(p => `
+    <div class="flex items-center gap-2">
+      <img src="${p.originalImg.src}" class="h-8 w-8 rounded object-cover border">
+      <span class="flex-1 truncate">${p.name}</span>
+      <input type="number" min="0" max="99" value="${p.printQty}" data-id="${p.id}" class="qtyInput w-16 border rounded-lg px-2 py-1 text-sm">
+    </div>`).join("");
+  wrap.querySelectorAll(".qtyInput").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const id = Number(e.target.dataset.id);
+      const photo = photos.find(x=>x.id===id);
+      if (photo) photo.printQty = Math.max(0, Number(e.target.value)||0);
+      renderPrintPreview();
+    });
+  });
+}
+
+/* ===================== Paper size handling ===================== */
+$("paperPreset").addEventListener("change", ()=>{
+  const isCustom = $("paperPreset").value === "custom";
+  $("customPaperWrap").classList.toggle("hidden", !isCustom);
+  $("customPaperWrap2").classList.toggle("hidden", !isCustom);
+  renderPrintPreview();
+});
+function currentPaper(){
+  const id = $("paperPreset").value;
+  if (id === "custom") return { id:"custom", w:Number($("customPaperW").value)||210, h:Number($("customPaperH").value)||297 };
+  return PAPERS.find(p=>p.id===id);
+}
+
+/* ===================== Auto-grid toggle ===================== */
+$("autoGrid").addEventListener("change", ()=>{
+  const auto = $("autoGrid").checked;
+  $("rowsInput").disabled = auto;
+  renderPrintPreview();
+});
+
+/* ===================== Print grid math ===================== */
+function calculateGrid({ photoW, photoH, targetColumns, targetRows, autoRows, marginMm, spacingMm, pageW, pageH }){
+  let margin = marginMm, spacing = spacingMm, columns = Math.max(1, targetColumns), warning = null;
+  const EPS = 0.05;
+  const widthNeeded = (cols,m,s) => 2*m + cols*photoW + (cols-1)*s;
+  const heightNeeded = (rows,m,s) => 2*m + rows*photoH + (rows-1)*s;
+
+  if (widthNeeded(columns,margin,spacing) > pageW + EPS){
+    while (widthNeeded(columns,margin,spacing) > pageW + EPS && spacing > 0) spacing = Math.max(0, spacing - 0.25);
   }
-  function computeGrid(){
-    const [sw, sh] = getSheetMM();
-    const outerM = 5, gap = 3;
-    const maxCols = Math.max(1, Math.floor((sw - 2*outerM + gap) / (state.fmtW + gap)));
-    const maxRows = Math.max(1, Math.floor((sh - 2*outerM + gap) / (state.fmtH + gap)));
-    state.cols = Math.min(Math.max(1, state.cols||maxCols), maxCols);
-    state.rows = Math.min(Math.max(1, state.rows||maxRows), maxRows);
-    return {cols: state.cols, maxCols, rows: state.rows, maxRows, outerM, gap, sw, sh};
+  if (widthNeeded(columns,margin,spacing) > pageW + EPS){
+    while (widthNeeded(columns,margin,spacing) > pageW + EPS && margin > 0) margin = Math.max(0, margin - 0.25);
   }
-  function updateSheetInfo(){
-    const g = computeGrid();
-    const maxFit = g.cols*g.rows;
-    $('maxFit').textContent = maxFit;
-    copiesRange.max = maxFit;
-    $('colVal').textContent = g.cols;
-    $('colDec').disabled = g.cols<=1;
-    $('colInc').disabled = g.cols>=g.maxCols;
-    $('colMaxNote').textContent = g.cols>=g.maxCols ? '(अधिकतम)' : '';
-    $('rowVal').textContent = g.rows;
-    $('rowDec').disabled = g.rows<=1;
-    $('rowInc').disabled = g.rows>=g.maxRows;
-    $('rowMaxNote').textContent = g.rows>=g.maxRows ? '(अधिकतम)' : '';
-    $('gridInfo').textContent = g.cols+' × '+g.rows;
-    const pxW = Math.round(g.sw/25.4*state.dpiSheet);
-    const pxH = Math.round(g.sh/25.4*state.dpiSheet);
-    $('sheetQualityStat').textContent = pxW+' × '+pxH+' px';
+  if (widthNeeded(columns,margin,spacing) > pageW + EPS){
+    margin = marginMm; spacing = spacingMm;
+    while (columns > 1 && widthNeeded(columns,margin,spacing) > pageW) columns--;
+    warning = `${photoW}×${photoH}mm photos can't fit ${targetColumns} across on this page with a ${marginMm}mm margin — showing ${columns} per row instead.`;
   }
 
-  function fillGridAndRender(){
-    const g = computeGrid();
-    copiesRange.value = g.cols*g.rows;
-    $('copiesVal').textContent = copiesRange.value;
-    updateSheetInfo();
-    renderSheet();
-  }
-
-  $('colDec').addEventListener('click', ()=>{ state.cols = Math.max(1, state.cols-1); fillGridAndRender(); });
-  $('colInc').addEventListener('click', ()=>{ state.cols = state.cols+1; fillGridAndRender(); });
-  $('rowDec').addEventListener('click', ()=>{ state.rows = Math.max(1, state.rows-1); fillGridAndRender(); });
-  $('rowInc').addEventListener('click', ()=>{ state.rows = state.rows+1; fillGridAndRender(); });
-
-  function renderSheet(){
-    if(!state.finalCanvas) return;
-    const g = computeGrid();
-    state.sheetMM = {w:g.sw, h:g.sh};
-    const dpi = state.dpiSheet;
-    const mmToPx = mm => Math.round(mm/25.4*dpi);
-    const sheetCanvas = $('sheetCanvas');
-    const W = mmToPx(g.sw), H = mmToPx(g.sh);
-    sheetCanvas.width=W; sheetCanvas.height=H;
-    const sctx = sheetCanvas.getContext('2d');
-    sctx.fillStyle='#fff'; sctx.fillRect(0,0,W,H);
-
-    const photoWpx = mmToPx(state.fmtW), photoHpx = mmToPx(state.fmtH);
-    const gapPx = mmToPx(g.gap), outerPx = mmToPx(g.outerM);
-    let count = +copiesRange.value;
-    const markLen = mmToPx(3);
-
-    outer:
-    for(let r=0;r<g.rows;r++){
-      for(let c=0;c<g.cols;c++){
-        if(count<=0) break outer;
-        const x = outerPx + c*(photoWpx+gapPx);
-        const y = outerPx + r*(photoHpx+gapPx);
-        sctx.drawImage(state.finalCanvas, x, y, photoWpx, photoHpx);
-        // crop marks
-        sctx.strokeStyle='#C23B3B'; sctx.lineWidth=Math.max(1,dpi/150);
-        const corners = [[x,y,1,1],[x+photoWpx,y,-1,1],[x,y+photoHpx,1,-1],[x+photoWpx,y+photoHpx,-1,-1]];
-        corners.forEach(([cx,cy,dx,dy])=>{
-          sctx.beginPath();
-          sctx.moveTo(cx,cy); sctx.lineTo(cx+dx*markLen, cy);
-          sctx.moveTo(cx,cy); sctx.lineTo(cx, cy+dy*markLen);
-          sctx.stroke();
-        });
-        count--;
+  let rows;
+  if (autoRows){
+    rows = Math.max(1, Math.floor((pageH - 2*margin + spacing) / (photoH + spacing)));
+  } else {
+    rows = Math.max(1, targetRows);
+    let m2 = marginMm, s2 = spacingMm;
+    if (heightNeeded(rows,m2,s2) > pageH + EPS){
+      while (heightNeeded(rows,m2,s2) > pageH + EPS && s2 > 0) s2 = Math.max(0, s2 - 0.25);
+      if (heightNeeded(rows,m2,s2) > pageH + EPS){
+        while (heightNeeded(rows,m2,s2) > pageH + EPS && m2 > 0) m2 = Math.max(0, m2 - 0.25);
+      }
+      if (heightNeeded(rows,m2,s2) > pageH + EPS){
+        const maxRows = Math.max(1, Math.floor((pageH - 2*marginMm + spacingMm) / (photoH + spacingMm)));
+        warning = (warning ? warning + " " : "") + `${rows} rows of ${photoH}mm photos don't fit this page — reduce rows to ${maxRows} or shrink margins.`;
+      } else {
+        margin = Math.min(margin, m2); spacing = Math.min(spacing, s2);
       }
     }
   }
 
-  $('downloadSheetBtn').addEventListener('click', ()=>{
-    const sheetCanvas = $('sheetCanvas');
-    const a = document.createElement('a');
-    a.download = 'passport-photo-sheet.png';
-    a.href = sheetCanvas.toDataURL('image/png');
-    a.click();
-  });
-  $('downloadSingleBtn').addEventListener('click', ()=>{
-    if(!state.finalCanvas) return;
-    const a = document.createElement('a');
-    a.download = 'passport-photo.png';
-    a.href = state.finalCanvas.toDataURL('image/png');
-    a.click();
-  });
+  const gridW = columns*photoW + (columns-1)*spacing;
+  const gridH = rows*photoH + (rows-1)*spacing;
+  const offsetX = (pageW-gridW)/2, offsetY = (pageH-gridH)/2;
+  const positions = [];
+  for (let r=0;r<rows;r++) for (let c=0;c<columns;c++) positions.push({ x: offsetX + c*(photoW+spacing), y: offsetY + r*(photoH+spacing) });
+  return { columns, rows, total: columns*rows, margin, spacing, pageW, pageH, warning, positions };
+}
 
-  $('downloadPdfBtn').addEventListener('click', ()=>{
-    if(!state.sheetMM || typeof window.jspdf === 'undefined'){
-      alert('PDF लाइब्रेरी लोड नहीं हो पाई — कृपया इंटरनेट कनेक्शन चेक करें और PNG डाउनलोड इस्तेमाल करें।');
-      return;
+function currentPrintSettings(){
+  const preset = SIZES.find(s=>s.id === $("printSizePreset").value);
+  const paper = currentPaper();
+  const orientation = $("orientation").value;
+  const pageW = orientation==="portrait" ? Math.min(paper.w,paper.h) : Math.max(paper.w,paper.h);
+  const pageH = orientation==="portrait" ? Math.max(paper.w,paper.h) : Math.min(paper.w,paper.h);
+  return {
+    preset, paper, orientation, pageW, pageH,
+    dpi: Number($("dpi").value),
+    columns: Number($("columns").value)||1,
+    rows: Number($("rowsInput").value)||1,
+    autoRows: $("autoGrid").checked,
+    spacing: Number($("spacing").value),
+    margin: Number($("margin").value),
+    cutBorders: $("cutBorders").checked,
+  };
+}
+
+/** Builds an ordered queue of photos to print, cycling through uploads according to their quantities. */
+function buildPrintQueue(totalSlots){
+  const wanted = [];
+  photos.forEach(p => { for (let i=0;i<p.printQty;i++) wanted.push(p); });
+  if (!wanted.length) return { queue: [], leftover: 0 };
+  const queue = [];
+  for (let i=0;i<totalSlots;i++) queue.push(wanted[i % wanted.length]);
+  const leftover = Math.max(0, wanted.length - totalSlots);
+  return { queue, leftover, requested: wanted.length };
+}
+
+function renderPrintPreview(){
+  if (!photos.length) return;
+  const s = currentPrintSettings();
+  const grid = calculateGrid({ photoW:s.preset.w, photoH:s.preset.h, targetColumns:s.columns, targetRows:s.rows, autoRows:s.autoRows, marginMm:s.margin, spacingMm:s.spacing, pageW:s.pageW, pageH:s.pageH });
+  if (s.autoRows) $("rowsInput").value = grid.rows;
+  const sheet = $("sheetPreview");
+  sheet.style.aspectRatio = `${grid.pageW}/${grid.pageH}`;
+
+  const { queue, leftover, requested } = buildPrintQueue(grid.total);
+  const thumbCache = new Map();
+  function thumbFor(photo){
+    if (thumbCache.has(photo.id)) return thumbCache.get(photo.id);
+    const t = document.createElement("canvas");
+    renderPhotoToCanvas(photo, t, 160, Math.round(160*(s.preset.h/s.preset.w)));
+    const url = t.toDataURL("image/png");
+    thumbCache.set(photo.id, url);
+    return url;
+  }
+
+  sheet.innerHTML = grid.positions.map((p,i) => {
+    const photo = queue[i];
+    if (!photo) return "";
+    return `<div style="position:absolute; left:${(p.x/grid.pageW)*100}%; top:${(p.y/grid.pageH)*100}%; width:${(s.preset.w/grid.pageW)*100}%; height:${(s.preset.h/grid.pageH)*100}%; ${s.cutBorders?'border:0.5px solid rgba(0,0,0,.3);':''} overflow:hidden;">
+      <img src="${thumbFor(photo)}" style="width:100%;height:100%;object-fit:cover;" />
+    </div>`;
+  }).join("");
+
+  let info = grid.warning ? grid.warning + " " : "";
+  info += `${grid.columns} across × ${grid.rows} down = ${grid.total} slots on this ${s.paper.label || 'page'}.`;
+  if (requested === 0) info += ` No copies selected yet — set a quantity for at least one photo below.`;
+  else if (leftover > 0) info += ` ${leftover} requested copies didn't fit — add another sheet or increase rows/columns.`;
+  $("gridInfo").className = "text-xs rounded-xl px-3 py-2 " + (grid.warning || requested===0 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700");
+  $("gridInfo").textContent = info;
+}
+["printSizePreset","orientation","dpi","columns","rowsInput","spacing","margin","cutBorders","customPaperW","customPaperH"].forEach(id=>{
+  $(id).addEventListener("input", renderPrintPreview);
+  $(id).addEventListener("change", renderPrintPreview);
+});
+
+/* ===================== Build & download the real high-res print sheet ===================== */
+async function buildSheetCanvas(){
+  const s = currentPrintSettings();
+  const grid = calculateGrid({ photoW:s.preset.w, photoH:s.preset.h, targetColumns:s.columns, targetRows:s.rows, autoRows:s.autoRows, marginMm:s.margin, spacingMm:s.spacing, pageW:s.pageW, pageH:s.pageH });
+  const { queue } = buildPrintQueue(grid.total);
+
+  const sheet = document.createElement("canvas");
+  sheet.width = mmToPx(grid.pageW, s.dpi);
+  sheet.height = mmToPx(grid.pageH, s.dpi);
+  const ctx = sheet.getContext("2d");
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0,0,sheet.width,sheet.height);
+  const pw = mmToPx(s.preset.w, s.dpi), ph = mmToPx(s.preset.h, s.dpi);
+
+  const photoCanvases = new Map();
+  function canvasFor(photo){
+    if (photoCanvases.has(photo.id)) return photoCanvases.get(photo.id);
+    const c = document.createElement("canvas");
+    renderPhotoToCanvas(photo, c, pw, ph);
+    photoCanvases.set(photo.id, c);
+    return c;
+  }
+
+  grid.positions.forEach((p,i) => {
+    const photo = queue[i];
+    if (!photo) return;
+    const x = mmToPx(p.x, s.dpi), y = mmToPx(p.y, s.dpi);
+    ctx.drawImage(canvasFor(photo), x, y, pw, ph);
+    if (s.cutBorders){ ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.lineWidth=Math.max(1,s.dpi/300); ctx.strokeRect(x,y,pw,ph); }
+  });
+  return { sheet, orientation: s.orientation, pageW:grid.pageW, pageH:grid.pageH };
+}
+
+async function downloadSheet(format){
+  $("printBusy").classList.remove("hidden");
+  try {
+    const { sheet, pageW, pageH } = await buildSheetCanvas();
+    if (format==="pdf"){
+      const { jsPDF } = window.jspdf;
+      const orientation = pageW > pageH ? "landscape" : "portrait";
+      const pdf = new jsPDF({ orientation, unit:"mm", format:[pageW,pageH], compress:false });
+      pdf.addImage(sheet.toDataURL("image/png",1.0), "PNG", 0, 0, pageW, pageH, undefined, "NONE");
+      pdf.save("passport-print-sheet.pdf");
+    } else {
+      const mime = format==="jpeg" ? "image/jpeg" : "image/png";
+      const a = document.createElement("a");
+      a.href = sheet.toDataURL(mime, 1.0);
+      a.download = `passport-print-sheet.${format==="jpeg"?"jpg":"png"}`;
+      a.click();
     }
-    const { jsPDF } = window.jspdf;
-    const {w,h} = state.sheetMM;
-    const orientation = w>h ? 'l' : 'p';
-    const pdf = new jsPDF({unit:'mm', format:[w,h], orientation});
-    const imgData = $('sheetCanvas').toDataURL('image/jpeg', 0.95);
-    pdf.addImage(imgData, 'JPEG', 0, 0, w, h);
-    pdf.save('passport-photo-sheet.pdf');
-  });
-
-})();
+  } finally {
+    $("printBusy").classList.add("hidden");
+  }
+}
+window.downloadSheet = downloadSheet;
 </script>
 </body>
 </html>
-
