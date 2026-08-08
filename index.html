@@ -22,6 +22,17 @@
   .thumb.active img{ border-color:var(--studio); }
   .thumb .qty{ width:100%; text-align:center; font-size:11px; margin-top:2px; border:1px solid #e2e8f0; border-radius:6px; padding:1px 0; }
   .thumb .x{ position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; border-radius:99px; width:18px; height:18px; font-size:11px; line-height:18px; text-align:center; cursor:pointer; }
+  .qtyStepper{ display:flex; align-items:center; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+  .qtyStepper button{ width:28px; height:28px; font-size:14px; color:#475569; background:#f8fafc; }
+  .qtyStepper button:hover{ background:#eef2ff; }
+  .qtyStepper input{ width:36px; text-align:center; border:none; font-size:13px; }
+  @media print {
+    body > *:not(#printOnlyArea){ display:none !important; }
+    #printOnlyArea{ display:block !important; position:absolute; left:0; top:0; margin:0; padding:0; }
+    #printOnlyArea img{ display:block; }
+    html, body{ margin:0 !important; padding:0 !important; height:auto !important; overflow:visible !important; }
+    @page{ margin:0; }
+  }
 </style>
 </head>
 <body class="mesh min-h-screen text-slate-800">
@@ -98,8 +109,11 @@
               <label class="text-xs text-slate-500">Quality</label>
               <select id="exportDpi" class="w-full border rounded-xl px-3 py-2 text-sm">
                 <option value="150">Draft · 150 DPI</option>
-                <option value="300" selected>Standard · 300 DPI</option>
+                <option value="300" selected>Standard (HD) · 300 DPI</option>
+                <option value="450">Full HD · 450 DPI</option>
                 <option value="600">High · 600 DPI</option>
+                <option value="900">2K · 900 DPI</option>
+                <option value="1200">Ultra HD (4K) · 1200 DPI</option>
               </select>
             </div>
             <div>
@@ -116,15 +130,20 @@
 
       <div class="glass rounded-2xl p-4 space-y-5">
         <div>
-          <div class="grid grid-cols-2 gap-2">
-            <button id="removeBgBtn" onclick="handleRemoveBackground()" class="w-full bg-gradient-to-r from-[var(--studio)] to-blue-500 text-white text-sm font-semibold rounded-xl py-3">
-              ✨ AI background removal
+          <div class="grid grid-cols-1 gap-2">
+            <button id="removeBgApiBtn" onclick="handleRemoveBgApi()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold rounded-xl py-3 flex items-center justify-center gap-2">
+              🎯 remove.bg removal (studio quality)
             </button>
-            <button id="quickBgBtn" onclick="handleQuickRemoveBackground()" class="w-full border text-sm font-semibold rounded-xl py-3">
-              ⚡ Quick removal (offline)
-            </button>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="removeBgBtn" onclick="handleRemoveBackground()" class="w-full bg-gradient-to-r from-[var(--studio)] to-blue-500 text-white text-sm font-semibold rounded-xl py-3">
+                ✨ AI background removal
+              </button>
+              <button id="quickBgBtn" onclick="handleQuickRemoveBackground()" class="w-full border text-sm font-semibold rounded-xl py-3">
+                ⚡ Quick removal (offline)
+              </button>
+            </div>
           </div>
-          <p class="text-[11px] text-slate-500 mt-1.5">AI mode downloads a small segmentation model (~15–40MB) and needs internet access. If your network blocks that, use Quick removal — it works fully offline and is best for plain, single-colour backgrounds.</p>
+          <p class="text-[11px] text-slate-500 mt-1.5">remove.bg gives the cleanest edges (hair, glasses) but needs your own free API key from <a href="https://www.remove.bg/api" target="_blank" class="underline text-[var(--studio)]">remove.bg/api</a> (50 free/month) — it's only kept in this browser tab. AI mode downloads a small on-device model (~15–40MB) and needs internet. Quick removal works fully offline, best for plain single-colour backgrounds.</p>
         </div>
 
         <div>
@@ -136,6 +155,34 @@
             <label class="flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-sm cursor-pointer">
               <input id="customColor" type="color" value="#ffffff" class="h-3.5 w-3.5 border-0 p-0 bg-transparent" onchange="setBackground('custom', this.value)" />Custom
             </label>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-sm font-medium mb-2">Border</p>
+          <label class="flex items-center gap-1.5 text-sm cursor-pointer mb-2">
+            <input id="borderEnabled" type="checkbox">Add border
+          </label>
+          <div class="flex flex-wrap gap-2 mb-2" id="borderStyleOptions">
+            <button data-style="solid" class="border-style-choice border rounded-xl px-3 py-1.5 text-sm">Solid</button>
+            <button data-style="dashed" class="border-style-choice border rounded-xl px-3 py-1.5 text-sm">Dashed</button>
+            <button data-style="dotted" class="border-style-choice border rounded-xl px-3 py-1.5 text-sm">Dotted</button>
+            <button data-style="double" class="border-style-choice border rounded-xl px-3 py-1.5 text-sm">Double</button>
+            <button data-style="rounded" class="border-style-choice border rounded-xl px-3 py-1.5 text-sm">Rounded</button>
+            <button data-style="shadow" class="border-style-choice border rounded-xl px-3 py-1.5 text-sm">Shadow</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-sm cursor-pointer">
+              <input id="borderColor" type="color" value="#000000" class="h-3.5 w-3.5 border-0 p-0 bg-transparent" />Color
+            </label>
+            <div class="flex items-center gap-1.5 text-sm">
+              <span class="text-xs text-slate-500">Width</span>
+              <input id="borderWidth" type="range" min="1" max="20" value="4" class="w-24">
+            </div>
+            <div id="borderRadiusWrap" class="hidden items-center gap-1.5 text-sm">
+              <span class="text-xs text-slate-500">Corner radius</span>
+              <input id="borderRadius" type="range" min="0" max="60" value="14" class="w-24">
+            </div>
           </div>
         </div>
 
@@ -194,8 +241,11 @@
             <label class="text-xs text-slate-500">Print quality</label>
             <select id="dpi" class="w-full border rounded-xl px-3 py-2 text-sm">
               <option value="150">Draft · 150 DPI</option>
-              <option value="300" selected>Standard · 300 DPI</option>
+              <option value="300" selected>Standard (HD) · 300 DPI</option>
+              <option value="450">Full HD · 450 DPI</option>
               <option value="600">High · 600 DPI</option>
+              <option value="900">2K · 900 DPI</option>
+              <option value="1200">Ultra HD (4K) · 1200 DPI</option>
             </select>
           </div>
           <div>
@@ -209,7 +259,7 @@
         </div>
 
         <div class="border-t pt-3">
-          <label class="flex items-center gap-2 text-sm mb-2"><input id="autoGrid" type="checkbox" checked>Auto-fit rows & columns to the page</label>
+          <label class="flex items-center gap-2 text-sm mb-2"><input id="autoGrid" type="checkbox">Auto-fit rows & columns to the page</label>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="text-xs text-slate-500">Columns (per row)</label>
@@ -217,21 +267,25 @@
             </div>
             <div>
               <label class="text-xs text-slate-500">Rows</label>
-              <input id="rowsInput" type="number" min="1" max="15" value="4" class="w-full border rounded-xl px-3 py-2 text-sm" disabled>
+              <input id="rowsInput" type="number" min="1" max="15" value="1" class="w-full border rounded-xl px-3 py-2 text-sm">
             </div>
           </div>
         </div>
 
         <label class="flex items-center gap-2 text-sm"><input id="cutBorders" type="checkbox" checked>Show cut borders</label>
 
-        <div class="border-t pt-3">
-          <button onclick="fillPageWithActivePhoto()" class="w-full bg-slate-800 text-white text-sm font-semibold rounded-xl py-2.5">📄 Fill whole sheet with this photo (like the MS Word trick)</button>
-          <p class="text-[11px] text-slate-500 mt-1.5">Same idea as pasting one passport photo into a Word table and copying it into every cell — this packs the page tight and repeats your currently selected photo as many times as will fit.</p>
+        <div class="border-t pt-3 grid grid-cols-2 gap-2">
+          <button onclick="fillPageWithActivePhoto()" class="w-full bg-slate-800 text-white text-sm font-semibold rounded-xl py-2.5">📄 Fill sheet with this photo</button>
+          <button id="splitEvenlyBtn" onclick="splitEvenlyAcrossPhotos()" class="hidden w-full bg-slate-600 text-white text-sm font-semibold rounded-xl py-2.5">🔀 Split evenly, all photos</button>
         </div>
+        <p class="text-[11px] text-slate-500 -mt-1">"Fill sheet" repeats your currently selected photo across the whole page — same idea as the MS Word copy-paste-into-every-cell trick. "Split evenly" divides the page equally between every uploaded photo.</p>
 
-        <div id="photoQtyPanel" class="border-t pt-3 space-y-1">
-          <p class="text-xs text-slate-500 mb-1">Or set copies per uploaded photo manually (fills the sheet, cycling through if there's extra room):</p>
-          <div id="photoQtyList" class="space-y-1 text-sm"></div>
+        <div id="photoQtyPanel" class="hidden border-t pt-3 space-y-1.5">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-xs font-medium">How many copies of each photo?</p>
+            <p id="qtyTotalNote" class="text-[11px] text-slate-500"></p>
+          </div>
+          <div id="photoQtyList" class="space-y-1.5 text-sm"></div>
         </div>
 
         <div id="gridInfo" class="text-xs rounded-xl px-3 py-2 bg-emerald-50 text-emerald-700"></div>
@@ -243,6 +297,7 @@
           <div id="sheetPreview" class="relative w-full bg-white border rounded-lg overflow-hidden shadow"></div>
         </div>
         <div id="printBusy" class="hidden text-xs text-slate-500 flex items-center gap-1.5 justify-center"><div class="spinner" style="border-color:#94a3b8; border-top-color:#334155; width:14px; height:14px;"></div>Rendering…</div>
+        <button onclick="printSheet()" class="w-full bg-slate-800 text-white text-sm font-semibold rounded-xl py-2.5">🖨️ Print (opens your printer dialog)</button>
         <div class="grid grid-cols-3 gap-2">
           <button onclick="downloadSheet('png')" class="glass border rounded-xl py-2 text-sm">PNG</button>
           <button onclick="downloadSheet('jpeg')" class="glass border rounded-xl py-2 text-sm">JPEG</button>
@@ -250,13 +305,16 @@
         </div>
       </div>
     </div>
+
+    <!-- Hidden print-only surface used by the browser Print button -->
   </section>
 </main>
+<div id="printOnlyArea" style="display:none;"></div>
 
 <script>
 /* ===================== Constants ===================== */
 const SIZES = [
-  { id:"india-passport", label:"India Passport", w:51, h:51, note:"2×2 in (51×51 mm), white background." },
+  { id:"india-passport", label:"India Passport", w:35, h:45, note:"35×45 mm, white background." },
   { id:"india-visa", label:"India Visa", w:51, h:51, note:"Same format as passport photo." },
   { id:"aadhaar", label:"Aadhaar", w:35, h:45, note:"35×45 mm, white background." },
   { id:"pan", label:"PAN Card", w:25, h:35, note:"25×35 mm colour photo." },
@@ -266,6 +324,7 @@ const SIZES = [
   { id:"custom", label:"Custom (35×45mm)", w:35, h:45, note:"Edit width/height in code if needed." },
 ];
 const PAPERS = [
+  { id:"fit", label:"Auto-fit to photos (narrow)", w:0, h:0 },
   { id:"a4", label:"A4 (210×297mm)", w:210, h:297 },
   { id:"a5", label:"A5 · narrow (148×210mm)", w:148, h:210 },
   { id:"4x6", label:"4×6 in (101.6×152.4mm)", w:101.6, h:152.4 },
@@ -277,14 +336,15 @@ const BG_COLORS = { white:"#FFFFFF", blue:"#4A90D9", lightgray:"#D9D9D9" };
 
 /* ===================== State ===================== */
 // each photo: { id, name, originalImg, subjectImg, bgStatus:'none'|'busy'|'ai'|'quick'|'error',
-//               adjustments{...}, background{...}, printQty }
+//               adjustments{...}, background{...}, border{...}, printQty }
 let photos = [];
 let activeId = null;
-let sizePresetId = "aadhaar";
+let sizePresetId = "india-passport";
 let nextId = 1;
 
 function defaultAdjustments(){ return { brightness:0, contrast:0, saturation:0, sharpness:0, zoom:100, rotate:0, panX:0, panY:0 }; }
 function defaultBackground(){ return { type:"white", color:"#FFFFFF" }; }
+function defaultBorder(){ return { enabled:false, style:"solid", color:"#000000", width:4, radius:14 }; }
 function activePhoto(){ return photos.find(p=>p.id===activeId); }
 
 /* ===================== DOM refs ===================== */
@@ -300,7 +360,9 @@ $("sizePreset").value = sizePresetId;
 $("printSizePreset").value = sizePresetId;
 $("sizeNote").textContent = SIZES.find(s=>s.id===sizePresetId).note;
 $("paperPreset").innerHTML = PAPERS.map(p => `<option value="${p.id}">${p.label}</option>`).join("");
-$("paperPreset").value = "a4";
+$("paperPreset").value = "fit";
+$("orientation").disabled = true;
+$("autoGrid").disabled = true;
 
 /* ===================== Upload handling ===================== */
 const dropzone = $("dropzone"), fileInput = $("fileInput"), cameraInput = $("cameraInput"), uploadError = $("uploadError");
@@ -335,6 +397,7 @@ function handleFiles(fileList){
         bgStatus: "none",
         adjustments: defaultAdjustments(),
         background: defaultBackground(),
+        border: defaultBorder(),
         printQty: 1,
       });
       if (activeId === null) activeId = id;
@@ -510,6 +573,80 @@ function runQuickRemoval(p){
   });
 }
 
+/* ===================== Background removal: Pro (remove.bg API) ===================== */
+let removeBgApiKey = "";
+
+function promptForRemoveBgKey(){
+  const existing = removeBgApiKey;
+  const key = prompt(
+    "Paste your remove.bg API key.\n\nGet a free key (50 free removals/month) at remove.bg/api — it's only kept in this browser tab for this session, never saved or sent anywhere else.",
+    existing
+  );
+  if (key === null) return null;
+  removeBgApiKey = key.trim();
+  return removeBgApiKey;
+}
+window.promptForRemoveBgKey = promptForRemoveBgKey;
+
+function imgToBlob(img){
+  return new Promise((resolve, reject) => {
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    c.toBlob(b => b ? resolve(b) : reject(new Error("Could not read image")), "image/png", 1.0);
+  });
+}
+
+async function handleRemoveBgApi(){
+  const p = activePhoto();
+  if (!p) return;
+  let key = removeBgApiKey;
+  if (!key) key = promptForRemoveBgKey();
+  if (!key) return; // user cancelled
+
+  setBusy(true, "Uploading to remove.bg…");
+  p.bgStatus = "busy";
+  try {
+    const srcBlob = await imgToBlob(p.originalImg);
+    const form = new FormData();
+    form.append("image_file", srcBlob, "photo.png");
+    form.append("size", "auto");
+
+    const res = await fetch("https://api.remove.bg/v1.0/removebg", {
+      method: "POST",
+      headers: { "X-Api-Key": key },
+      body: form,
+    });
+
+    if (!res.ok) {
+      let msg = `remove.bg error (${res.status})`;
+      try { const errJson = await res.json(); if (errJson?.errors?.[0]?.title) msg = errJson.errors[0].title; } catch {}
+      if (res.status === 401 || res.status === 403) {
+        removeBgApiKey = ""; // bad key, ask again next time
+        msg = "remove.bg rejected that API key. Click the button again to re-enter it.";
+      }
+      if (res.status === 402) msg = "remove.bg free credits are used up for this key — top up or get a new key at remove.bg/api.";
+      throw new Error(msg);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    p.subjectImg = await loadImage(url);
+    p.bgStatus = "removebg";
+    renderThumbnails();
+    renderPreview();
+  } catch (err) {
+    console.error(err);
+    p.bgStatus = "error";
+    updateBgStatusNote(err.message || "remove.bg request failed — check your internet connection and API key.");
+  } finally {
+    setBusy(false);
+    updateBgStatusNote();
+  }
+}
+window.handleRemoveBgApi = handleRemoveBgApi;
+
 function updateBgStatusNote(customMsg){
   const p = activePhoto();
   const note = $("bgStatusNote");
@@ -520,6 +657,7 @@ function updateBgStatusNote(customMsg){
     busy: "Processing…",
     ai: "Background removed with AI segmentation.",
     quick: "Background removed with offline quick removal — works best on plain backgrounds; if edges look rough, try cropping tighter or use AI removal when you have internet.",
+    removebg: "Background removed with remove.bg (studio-grade cutout).",
     error: "Background removal failed. Your original photo is unaffected.",
   };
   note.textContent = map[p.bgStatus] || "";
@@ -545,6 +683,46 @@ function setBackground(type, color){
   renderPreview();
 }
 window.setBackground = setBackground;
+
+/* ===================== Border controls (per active photo) ===================== */
+$("borderEnabled").addEventListener("change", e=>{
+  const p = activePhoto();
+  if (!p) return;
+  p.border.enabled = e.target.checked;
+  renderPreview();
+});
+$("borderColor").addEventListener("input", e=>{
+  const p = activePhoto();
+  if (!p) return;
+  p.border.color = e.target.value;
+  renderPreview();
+});
+$("borderWidth").addEventListener("input", e=>{
+  const p = activePhoto();
+  if (!p) return;
+  p.border.width = Number(e.target.value);
+  renderPreview();
+});
+$("borderRadius").addEventListener("input", e=>{
+  const p = activePhoto();
+  if (!p) return;
+  p.border.radius = Number(e.target.value);
+  renderPreview();
+});
+document.querySelectorAll(".border-style-choice").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const p = activePhoto();
+    if (!p) return;
+    p.border.style = btn.dataset.style;
+    updateBorderStyleUI(p.border.style);
+    renderPreview();
+  });
+});
+function updateBorderStyleUI(style){
+  document.querySelectorAll(".border-style-choice").forEach(b=>b.classList.toggle("ring-2", b.dataset.style===style));
+  $("borderRadiusWrap").classList.toggle("hidden", style!=="rounded");
+  $("borderRadiusWrap").classList.toggle("flex", style==="rounded");
+}
 
 /* ===================== Controls wiring (operate on active photo) ===================== */
 ["brightness","contrast","saturation","sharpness","zoom","rotate","panX","panY"].forEach(id=>{
@@ -579,6 +757,12 @@ function loadControlsFromActive(){
   $("zoom").value = a.zoom; $("rotate").value = a.rotate; $("panX").value = a.panX; $("panY").value = a.panY;
   document.querySelectorAll(".bg-choice").forEach(b=>b.classList.toggle("ring-2", b.dataset.bg===p.background.type));
   if (p.background.type==="custom") $("customColor").value = p.background.color;
+  if (!p.border) p.border = defaultBorder();
+  $("borderEnabled").checked = p.border.enabled;
+  $("borderColor").value = p.border.color;
+  $("borderWidth").value = p.border.width;
+  $("borderRadius").value = p.border.radius;
+  updateBorderStyleUI(p.border.style);
   updateBgStatusNote();
 }
 
@@ -625,9 +809,62 @@ function applySharpen(ctx, w, h, amount){
   ctx.putImageData(dst,0,0);
 }
 
+function roundedRectPath(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x, y+h, rr);
+  ctx.arcTo(x, y+h, x, y, rr);
+  ctx.arcTo(x, y, x+w, y, rr);
+  ctx.closePath();
+}
+
+function applyBorder(ctx, w, h, border){
+  if (!border || !border.enabled || border.width<=0) return;
+  const style = border.style || "solid";
+  const bw = border.width;
+  ctx.save();
+  ctx.strokeStyle = border.color;
+  ctx.lineWidth = bw;
+  ctx.setLineDash([]);
+  ctx.lineCap = "butt";
+
+  if (style === "solid"){
+    ctx.strokeRect(bw/2, bw/2, w-bw, h-bw);
+  } else if (style === "dashed"){
+    ctx.setLineDash([bw*2.5, bw*1.6]);
+    ctx.strokeRect(bw/2, bw/2, w-bw, h-bw);
+  } else if (style === "dotted"){
+    ctx.lineCap = "round";
+    ctx.setLineDash([0.01, bw*1.8]);
+    ctx.strokeRect(bw/2, bw/2, w-bw, h-bw);
+  } else if (style === "double"){
+    const gap = Math.max(2, bw*0.9);
+    const inner = Math.max(1, bw/3);
+    ctx.lineWidth = inner;
+    ctx.strokeRect(inner/2, inner/2, w-inner, h-inner);
+    ctx.strokeRect(inner/2+gap, inner/2+gap, w-inner-gap*2, h-inner-gap*2);
+  } else if (style === "rounded"){
+    roundedRectPath(ctx, bw/2, bw/2, w-bw, h-bw, border.radius||14);
+    ctx.stroke();
+  } else if (style === "shadow"){
+    ctx.strokeRect(bw/2, bw/2, w-bw, h-bw);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.shadowColor = border.color;
+    ctx.shadowBlur = bw*2.5;
+    ctx.shadowOffsetX = bw*0.6;
+    ctx.shadowOffsetY = bw*0.6;
+    ctx.strokeRect(bw/2, bw/2, w-bw, h-bw);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 /** Composites a given photo's subject onto its background, crops/zooms/rotates into a canvas at outW×outH px. */
 function renderPhotoToCanvas(photo, canvas, outW, outH){
-  const { subjectImg, background, adjustments } = photo;
+  const { subjectImg, background, adjustments, border } = photo;
   const ctx = canvas.getContext("2d");
   canvas.width = outW; canvas.height = outH;
   ctx.fillStyle = background.color;
@@ -649,6 +886,7 @@ function renderPhotoToCanvas(photo, canvas, outW, outH){
   ctx.restore();
   applyPixelAdjustments(ctx, outW, outH, adjustments);
   applySharpen(ctx, outW, outH, adjustments.sharpness);
+  applyBorder(ctx, outW, outH, border);
 }
 
 function mmToPx(mm, dpi){ return Math.round((mm/25.4)*dpi); }
@@ -695,30 +933,80 @@ function fillPageWithActivePhoto(){
 }
 window.fillPageWithActivePhoto = fillPageWithActivePhoto;
 
-/* ===================== Print quantity list ===================== */
+/* ===================== Print quantity list (how many of each photo) ===================== */
+function splitEvenlyAcrossPhotos(){
+  if (!photos.length) return;
+  const s = currentPrintSettings();
+  const grid = calculateGrid({
+    photoW: s.preset.w, photoH: s.preset.h,
+    targetColumns: s.columns, targetRows: s.rows, autoRows: s.autoRows,
+    marginMm: s.margin, spacingMm: s.spacing, pageW: s.pageW, pageH: s.pageH,
+  });
+  const n = photos.length;
+  const base = Math.floor(grid.total / n);
+  let extra = grid.total - base*n;
+  photos.forEach(photo => {
+    photo.printQty = base + (extra > 0 ? 1 : 0);
+    if (extra > 0) extra--;
+  });
+  renderPhotoQtyList();
+  renderPrintPreview();
+}
+window.splitEvenlyAcrossPhotos = splitEvenlyAcrossPhotos;
+
+function bumpPhotoQty(id, delta){
+  const photo = photos.find(x=>x.id===id);
+  if (!photo) return;
+  photo.printQty = Math.max(0, Math.min(99, photo.printQty + delta));
+  renderPhotoQtyList();
+  renderPrintPreview();
+}
+window.bumpPhotoQty = bumpPhotoQty;
+
 function renderPhotoQtyList(){
+  const panel = $("photoQtyPanel");
+  const splitBtn = $("splitEvenlyBtn");
+  // Only show manual per-photo quantities once there's more than one photo — with a single
+  // photo, "Fill sheet" already does the job.
+  const multi = photos.length > 1;
+  panel.classList.toggle("hidden", !multi);
+  splitBtn.classList.toggle("hidden", !multi);
+  if (!multi) return;
+
   const wrap = $("photoQtyList");
   wrap.innerHTML = photos.map(p => `
     <div class="flex items-center gap-2">
       <img src="${p.originalImg.src}" class="h-8 w-8 rounded object-cover border">
       <span class="flex-1 truncate">${p.name}</span>
-      <input type="number" min="0" max="99" value="${p.printQty}" data-id="${p.id}" class="qtyInput w-16 border rounded-lg px-2 py-1 text-sm">
+      <div class="qtyStepper">
+        <button type="button" onclick="bumpPhotoQty(${p.id},-1)">−</button>
+        <input type="number" min="0" max="99" value="${p.printQty}" data-id="${p.id}" class="qtyInput">
+        <button type="button" onclick="bumpPhotoQty(${p.id},1)">+</button>
+      </div>
     </div>`).join("");
   wrap.querySelectorAll(".qtyInput").forEach(inp => {
     inp.addEventListener("input", e => {
       const id = Number(e.target.dataset.id);
       const photo = photos.find(x=>x.id===id);
-      if (photo) photo.printQty = Math.max(0, Number(e.target.value)||0);
+      if (photo) photo.printQty = Math.max(0, Math.min(99, Number(e.target.value)||0));
       renderPrintPreview();
     });
   });
+  const total = photos.reduce((sum,p)=>sum+p.printQty, 0);
+  $("qtyTotalNote").textContent = `${total} photo${total===1?"":"s"} selected across ${photos.length} uploads`;
 }
 
 /* ===================== Paper size handling ===================== */
 $("paperPreset").addEventListener("change", ()=>{
-  const isCustom = $("paperPreset").value === "custom";
+  const val = $("paperPreset").value;
+  const isCustom = val === "custom";
   $("customPaperWrap").classList.toggle("hidden", !isCustom);
   $("customPaperWrap2").classList.toggle("hidden", !isCustom);
+  const isFit = val === "fit";
+  $("orientation").disabled = isFit;
+  $("autoGrid").disabled = isFit;
+  if (isFit) $("autoGrid").checked = false;
+  $("rowsInput").disabled = isFit ? false : $("autoGrid").checked;
   renderPrintPreview();
 });
 function currentPaper(){
@@ -773,9 +1061,8 @@ function calculateGrid({ photoW, photoH, targetColumns, targetRows, autoRows, ma
     }
   }
 
-  const gridW = columns*photoW + (columns-1)*spacing;
-  const gridH = rows*photoH + (rows-1)*spacing;
-  const offsetX = (pageW-gridW)/2, offsetY = (pageH-gridH)/2;
+  // Start the grid at the top-left margin (like Word's page margins), not centered on the page.
+  const offsetX = margin, offsetY = margin;
   const positions = [];
   for (let r=0;r<rows;r++) for (let c=0;c<columns;c++) positions.push({ x: offsetX + c*(photoW+spacing), y: offsetY + r*(photoH+spacing) });
   return { columns, rows, total: columns*rows, margin, spacing, pageW, pageH, warning, positions };
@@ -783,18 +1070,33 @@ function calculateGrid({ photoW, photoH, targetColumns, targetRows, autoRows, ma
 
 function currentPrintSettings(){
   const preset = SIZES.find(s=>s.id === $("printSizePreset").value);
-  const paper = currentPaper();
-  const orientation = $("orientation").value;
-  const pageW = orientation==="portrait" ? Math.min(paper.w,paper.h) : Math.max(paper.w,paper.h);
-  const pageH = orientation==="portrait" ? Math.max(paper.w,paper.h) : Math.min(paper.w,paper.h);
+  const isFit = $("paperPreset").value === "fit";
+  const margin = Number($("margin").value);
+  const spacing = Number($("spacing").value);
+  const columns = Number($("columns").value)||1;
+  const rows = Number($("rowsInput").value)||1;
+  let paper, pageW, pageH, autoRows;
+
+  if (isFit){
+    // Sheet hugs the photo grid exactly — no extra paper margin around the columns/rows.
+    pageW = 2*margin + columns*preset.w + Math.max(0,columns-1)*spacing;
+    pageH = 2*margin + rows*preset.h + Math.max(0,rows-1)*spacing;
+    paper = { id:"fit", label:"Auto-fit sheet", w:pageW, h:pageH };
+    autoRows = false; // rows drive the page height here, so auto-fit-to-page would be circular
+  } else {
+    paper = currentPaper();
+    const orientation = $("orientation").value;
+    pageW = orientation==="portrait" ? Math.min(paper.w,paper.h) : Math.max(paper.w,paper.h);
+    pageH = orientation==="portrait" ? Math.max(paper.w,paper.h) : Math.min(paper.w,paper.h);
+    autoRows = $("autoGrid").checked;
+  }
+
   return {
-    preset, paper, orientation, pageW, pageH,
+    preset, paper, orientation: $("orientation").value, pageW, pageH,
     dpi: Number($("dpi").value),
-    columns: Number($("columns").value)||1,
-    rows: Number($("rowsInput").value)||1,
-    autoRows: $("autoGrid").checked,
-    spacing: Number($("spacing").value),
-    margin: Number($("margin").value),
+    columns, rows,
+    autoRows,
+    spacing, margin,
     cutBorders: $("cutBorders").checked,
   };
 }
@@ -904,6 +1206,27 @@ async function downloadSheet(format){
   }
 }
 window.downloadSheet = downloadSheet;
+
+/* ===================== Print directly (browser print dialog) ===================== */
+async function printSheet(){
+  $("printBusy").classList.remove("hidden");
+  try {
+    const { sheet, pageW, pageH } = await buildSheetCanvas();
+    const area = $("printOnlyArea");
+    area.innerHTML = `<img src="${sheet.toDataURL('image/png',1.0)}" style="width:${pageW}mm; height:${pageH}mm; display:block;">`;
+
+    // Set the @page size to match the sheet exactly so the printer doesn't rescale/crop it.
+    let styleTag = document.getElementById("printPageSizeStyle");
+    if (!styleTag){ styleTag = document.createElement("style"); styleTag.id = "printPageSizeStyle"; document.head.appendChild(styleTag); }
+    const orientation = pageW > pageH ? "landscape" : "portrait";
+    styleTag.textContent = `@media print { @page { size: ${pageW}mm ${pageH}mm ${orientation}; margin:0; } }`;
+
+    setTimeout(() => window.print(), 50);
+  } finally {
+    $("printBusy").classList.add("hidden");
+  }
+}
+window.printSheet = printSheet;
 </script>
 </body>
 </html>
