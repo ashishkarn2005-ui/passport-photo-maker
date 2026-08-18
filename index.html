@@ -879,11 +879,15 @@ function renderPhotoToCanvas(photo, canvas, outW, outH){
   const { subjectImg, background, adjustments, border } = photo;
   const ctx = canvas.getContext("2d");
   canvas.width = outW; canvas.height = outH;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = background.color;
   ctx.fillRect(0,0,outW,outH);
   const off = document.createElement("canvas");
   off.width = subjectImg.naturalWidth; off.height = subjectImg.naturalHeight;
   const octx = off.getContext("2d");
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = "high";
   octx.fillStyle = background.color;
   octx.fillRect(0,0,off.width,off.height);
   octx.drawImage(subjectImg,0,0);
@@ -891,11 +895,43 @@ function renderPhotoToCanvas(photo, canvas, outW, outH){
   const cw = off.width/zoom, ch = off.height/zoom;
   const cx = off.width/2 + (adjustments.panX/100)*off.width;
   const cy = off.height/2 + (adjustments.panY/100)*off.height;
-  ctx.save();
-  ctx.translate(outW/2, outH/2);
-  ctx.rotate(adjustments.rotate*Math.PI/180);
-  ctx.drawImage(off, cx-cw/2, cy-ch/2, cw, ch, -outW/2, -outH/2, outW, outH);
-  ctx.restore();
+
+  // When the output canvas is much larger than the cropped source region (e.g. high DPI export
+  // or zooming into a small area), a single drawImage scale-up looks soft because the browser's
+  // resampler is optimized for downscaling, not big upscales. Do the upscale in progressive ~2x
+  // steps so each step stays within the resampler's sweet spot — this measurably sharpens
+  // high-DPI exports instead of just producing a bigger blurry image.
+  const scaleFactor = Math.max(outW / cw, outH / ch);
+  if (scaleFactor > 2){
+    let stepCanvas = off;
+    let stepCw = cw, stepCh = ch, stepCx = cx, stepCy = cy;
+    let curW = cw, curH = ch;
+    while ((outW / curW) > 2 || (outH / curH) > 2){
+      const nextW = Math.min(outW, Math.round(curW*2));
+      const nextH = Math.min(outH, Math.round(curH*2));
+      const tmp = document.createElement("canvas");
+      tmp.width = nextW; tmp.height = nextH;
+      const tctx = tmp.getContext("2d");
+      tctx.imageSmoothingEnabled = true;
+      tctx.imageSmoothingQuality = "high";
+      tctx.drawImage(stepCanvas, stepCx-stepCw/2, stepCy-stepCh/2, stepCw, stepCh, 0, 0, nextW, nextH);
+      stepCanvas = tmp;
+      stepCw = nextW; stepCh = nextH; stepCx = nextW/2; stepCy = nextH/2;
+      curW = nextW; curH = nextH;
+    }
+    ctx.save();
+    ctx.translate(outW/2, outH/2);
+    ctx.rotate(adjustments.rotate*Math.PI/180);
+    ctx.drawImage(stepCanvas, stepCx-stepCw/2, stepCy-stepCh/2, stepCw, stepCh, -outW/2, -outH/2, outW, outH);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.translate(outW/2, outH/2);
+    ctx.rotate(adjustments.rotate*Math.PI/180);
+    ctx.drawImage(off, cx-cw/2, cy-ch/2, cw, ch, -outW/2, -outH/2, outW, outH);
+    ctx.restore();
+  }
+
   applyPixelAdjustments(ctx, outW, outH, adjustments);
   applySharpen(ctx, outW, outH, adjustments.sharpness);
   applyBorder(ctx, outW, outH, border);
@@ -1240,6 +1276,8 @@ async function buildSheetCanvas(){
   sheet.width = mmToPx(grid.pageW, s.dpi);
   sheet.height = mmToPx(grid.pageH, s.dpi);
   const ctx = sheet.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0,0,sheet.width,sheet.height);
   const pw = mmToPx(s.preset.w, s.dpi), ph = mmToPx(s.preset.h, s.dpi);
@@ -1309,3 +1347,4 @@ window.printSheet = printSheet;
 </script>
 </body>
 </html>
+
